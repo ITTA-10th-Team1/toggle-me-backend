@@ -2,6 +2,7 @@ package com.itta.toggleme.auth.service;
 
 import com.itta.toggleme.auth.domain.RefreshToken;
 import com.itta.toggleme.auth.dto.TokenResponse;
+import com.itta.toggleme.auth.exception.InvalidRefreshTokenException;
 import com.itta.toggleme.auth.repository.RefreshTokenRepository;
 import com.itta.toggleme.global.security.JwtProperties;
 import com.itta.toggleme.global.security.JwtTokenProvider;
@@ -36,6 +37,24 @@ public class TokenService {
         Instant expiresAt = Instant.now().plus(jwtProperties.refreshTokenExpiry());
         refreshTokenRepository.save(RefreshToken.issue(member, hash(refreshToken), expiresAt));
         return TokenResponse.of(accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirySeconds());
+    }
+
+    @Transactional
+    public TokenResponse reissue(String refreshToken) {
+        Instant now = Instant.now();
+        RefreshToken savedToken = refreshTokenRepository.findByTokenHash(hash(refreshToken))
+                .filter(token -> token.isUsable(now))
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        savedToken.revoke(now);
+        return issue(savedToken.getMember());
+    }
+
+    @Transactional
+    public void revoke(Long memberId, String refreshToken) {
+        refreshTokenRepository.findByTokenHash(hash(refreshToken))
+                .filter(token -> token.getMember().getId().equals(memberId))
+                .ifPresent(token -> token.revoke(Instant.now()));
     }
 
     private String generateRefreshToken() {
