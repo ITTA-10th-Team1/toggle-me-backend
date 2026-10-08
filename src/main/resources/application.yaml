@@ -15,3 +15,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiry: 30m
+  refresh-token-expiry: 14d
