@@ -9,7 +9,6 @@ import com.itta.toggleme.member.domain.SocialAccount;
 import com.itta.toggleme.member.domain.SocialProvider;
 import com.itta.toggleme.member.repository.SocialAccountRepository;
 import com.itta.toggleme.member.service.MemberService;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,15 +27,12 @@ public class AuthService {
     public LoginResponse loginWithKakao(String kakaoAccessToken) {
         KakaoUserInfo kakaoUser = kakaoClient.getUserInfo(kakaoAccessToken);
 
-        Optional<SocialAccount> socialAccount =
-                socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoUser.kakaoId());
-        boolean newMember = socialAccount.isEmpty();
-        Member member = socialAccount
+        Member member = socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoUser.kakaoId())
                 .map(SocialAccount::getMember)
                 .orElseGet(() -> registerKakaoMember(kakaoUser));
 
         TokenResponse token = tokenService.issue(member);
-        return LoginResponse.of(token, newMember);
+        return LoginResponse.of(token, !member.isOnboardingCompleted());
     }
 
     private Member registerKakaoMember(KakaoUserInfo kakaoUser) {

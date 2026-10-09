@@ -20,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -50,7 +51,7 @@ class KakaoLoginTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.newMember").value(true));
+                .andExpect(jsonPath("$.onboardingRequired").value(true));
 
         assertThat(socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId))
                 .hasValueSatisfying(account -> {
@@ -60,18 +61,32 @@ class KakaoLoginTest {
     }
 
     @Test
-    void 이미_가입한_회원이_로그인하면_기존_회원으로_토큰을_발급한다() throws Exception {
+    void 온보딩을_마치지_않은_회원은_다시_로그인해도_온보딩이_필요하다() throws Exception {
         String kakaoId = randomKakaoId();
         given(kakaoClient.getUserInfo(anyString())).willReturn(new KakaoUserInfo(kakaoId, "카카오닉네임"));
-        mockMvc.perform(post(KAKAO_LOGIN_URL)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"accessToken\":\"kakao-token\"}"));
+        login().andExpect(status().isOk());
+        Long memberId = findMemberId(kakaoId);
 
-        mockMvc.perform(post(KAKAO_LOGIN_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"accessToken\":\"kakao-token\"}"))
+        login()
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.newMember").value(false));
+                .andExpect(jsonPath("$.onboardingRequired").value(true));
+
+        assertThat(findMemberId(kakaoId)).isEqualTo(memberId);
+    }
+
+    @Test
+    void 온보딩을_마친_회원은_온보딩이_필요하지_않다() throws Exception {
+        String kakaoId = randomKakaoId();
+        given(kakaoClient.getUserInfo(anyString())).willReturn(new KakaoUserInfo(kakaoId, "카카오닉네임"));
+        login().andExpect(status().isOk());
+        socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId)
+                .orElseThrow()
+                .getMember()
+                .completeOnboarding();
+
+        login()
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingRequired").value(false));
     }
 
     @Test
@@ -93,6 +108,19 @@ class KakaoLoginTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
                 .andExpect(jsonPath("$.errors[0].field").value("accessToken"));
+    }
+
+    private ResultActions login() throws Exception {
+        return mockMvc.perform(post(KAKAO_LOGIN_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accessToken\":\"kakao-token\"}"));
+    }
+
+    private Long findMemberId(String kakaoId) {
+        return socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId)
+                .orElseThrow()
+                .getMember()
+                .getId();
     }
 
     private String randomKakaoId() {

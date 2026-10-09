@@ -34,13 +34,21 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private MemberStatus status;
 
+    @Column(nullable = false)
+    private boolean onboardingCompleted;
+
     private Member(String handle, String nickname) {
         this.handle = handle;
         this.nickname = nickname;
         this.status = MemberStatus.ACTIVE;
+        this.onboardingCompleted = false;
     }
 
     public static Member create(String handle, String nickname) {
         return new Member(handle, nickname);
+    }
+
+    public void completeOnboarding() {
+        this.onboardingCompleted = true;
     }
 }

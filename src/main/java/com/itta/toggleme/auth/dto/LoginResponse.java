@@ -5,16 +5,16 @@ public record LoginResponse(
         String refreshToken,
         String tokenType,
         long expiresIn,
-        boolean newMember
+        boolean onboardingRequired
 ) {
 
-    public static LoginResponse of(TokenResponse token, boolean newMember) {
+    public static LoginResponse of(TokenResponse token, boolean onboardingRequired) {
         return new LoginResponse(
                 token.accessToken(),
                 token.refreshToken(),
                 token.tokenType(),
                 token.expiresIn(),
-                newMember
+                onboardingRequired
         );
     }
 }
