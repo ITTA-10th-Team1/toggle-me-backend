@@ -1,6 +1,7 @@
 package com.itta.toggleme.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.itta.toggleme.auth.exception.InvalidRefreshTokenException;
 import com.itta.toggleme.member.domain.Member;
@@ -19,7 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
-class TokenReissueConcurrencyTest {
+class TokenReissueTest {
 
     private static final int REQUEST_COUNT = 2;
 
@@ -72,5 +73,19 @@ class TokenReissueConcurrencyTest {
         executor.shutdown();
 
         assertThat(successCount).isEqualTo(1);
+    }
+
+    @Test
+    void 재사용_감지로_폐기한_세션_토큰은_예외_응답_후에도_폐기_상태로_유지된다() {
+        Member member = memberService.register("재사용");
+        memberId = member.getId();
+        String refreshToken = tokenService.issue(member).refreshToken();
+        String rotatedRefreshToken = tokenService.reissue(refreshToken).refreshToken();
+
+        assertThatThrownBy(() -> tokenService.reissue(refreshToken))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+
+        assertThatThrownBy(() -> tokenService.reissue(rotatedRefreshToken))
+                .isInstanceOf(InvalidRefreshTokenException.class);
     }
 }

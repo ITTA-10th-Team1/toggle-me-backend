@@ -28,6 +28,9 @@ public class RefreshToken extends BaseTimeEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
+    @Column(nullable = false, length = 36)
+    private String sessionId;
+
     @Column(nullable = false, unique = true)
     private String tokenHash;
 
@@ -36,18 +39,23 @@ public class RefreshToken extends BaseTimeEntity {
 
     private Instant revokedAt;
 
-    private RefreshToken(Member member, String tokenHash, Instant expiresAt) {
+    private RefreshToken(Member member, String sessionId, String tokenHash, Instant expiresAt) {
         this.member = member;
+        this.sessionId = sessionId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
     }
 
-    public static RefreshToken issue(Member member, String tokenHash, Instant expiresAt) {
-        return new RefreshToken(member, tokenHash, expiresAt);
+    public static RefreshToken issue(Member member, String sessionId, String tokenHash, Instant expiresAt) {
+        return new RefreshToken(member, sessionId, tokenHash, expiresAt);
     }
 
-    public boolean isUsable(Instant now) {
-        return revokedAt == null && now.isBefore(expiresAt);
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
+    public boolean isExpired(Instant now) {
+        return !now.isBefore(expiresAt);
     }
 
     public void revoke(Instant now) {

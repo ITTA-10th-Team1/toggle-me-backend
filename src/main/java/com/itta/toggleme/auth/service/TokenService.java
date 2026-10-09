@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,22 +33,25 @@ public class TokenService {
 
     @Transactional
     public TokenResponse issue(Member member) {
-        String accessToken = jwtTokenProvider.createAccessToken(member.getId());
-        String refreshToken = generateRefreshToken();
-        Instant expiresAt = Instant.now().plus(jwtProperties.refreshTokenExpiry());
-        refreshTokenRepository.save(RefreshToken.issue(member, hash(refreshToken), expiresAt));
-        return TokenResponse.of(accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirySeconds());
+        return issue(member, UUID.randomUUID().toString());
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public TokenResponse reissue(String refreshToken) {
         Instant now = Instant.now();
         RefreshToken savedToken = refreshTokenRepository.findByTokenHashForUpdate(hash(refreshToken))
-                .filter(token -> token.isUsable(now))
                 .orElseThrow(InvalidRefreshTokenException::new);
 
+        if (savedToken.isRevoked()) {
+            refreshTokenRepository.revokeAllActiveInSession(savedToken.getSessionId(), now);
+            throw new InvalidRefreshTokenException();
+        }
+        if (savedToken.isExpired(now)) {
+            throw new InvalidRefreshTokenException();
+        }
+
         savedToken.revoke(now);
-        return issue(savedToken.getMember());
+        return issue(savedToken.getMember(), savedToken.getSessionId());
     }
 
     @Transactional
@@ -55,6 +59,14 @@ public class TokenService {
         refreshTokenRepository.findByTokenHash(hash(refreshToken))
                 .filter(token -> token.getMember().getId().equals(memberId))
                 .ifPresent(token -> token.revoke(Instant.now()));
+    }
+
+    private TokenResponse issue(Member member, String sessionId) {
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId());
+        String refreshToken = generateRefreshToken();
+        Instant expiresAt = Instant.now().plus(jwtProperties.refreshTokenExpiry());
+        refreshTokenRepository.save(RefreshToken.issue(member, sessionId, hash(refreshToken), expiresAt));
+        return TokenResponse.of(accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirySeconds());
     }
 
     private String generateRefreshToken() {

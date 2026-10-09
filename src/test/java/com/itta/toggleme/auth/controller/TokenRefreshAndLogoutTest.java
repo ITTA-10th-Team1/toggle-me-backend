@@ -66,6 +66,29 @@ class TokenRefreshAndLogoutTest {
     }
 
     @Test
+    void 폐기된_Refresh_Token이_재사용되면_같은_기기의_최신_토큰도_폐기한다() throws Exception {
+        String rotatedRefreshToken = readRefreshToken(refresh(refreshToken).andExpect(status().isOk()));
+
+        refresh(refreshToken).andExpect(status().isUnauthorized());
+
+        refresh(rotatedRefreshToken)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void 재사용이_감지되어도_다른_기기의_토큰은_유지된다() throws Exception {
+        String otherDeviceRefreshToken = readRefreshToken(mockMvc.perform(post("/api/v1/auth/oauth/kakao")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"accessToken\":\"kakao-token\"}")));
+        refresh(refreshToken).andExpect(status().isOk());
+
+        refresh(refreshToken).andExpect(status().isUnauthorized());
+
+        refresh(otherDeviceRefreshToken).andExpect(status().isOk());
+    }
+
+    @Test
     void 존재하지_않는_Refresh_Token이면_401을_반환한다() throws Exception {
         refresh("unknown-refresh-token")
                 .andExpect(status().isUnauthorized())
@@ -95,6 +118,10 @@ class TokenRefreshAndLogoutTest {
         return mockMvc.perform(post("/api/v1/auth/token/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(refreshTokenBody(token)));
+    }
+
+    private String readRefreshToken(ResultActions result) throws Exception {
+        return JsonPath.read(result.andReturn().getResponse().getContentAsString(), "$.refreshToken");
     }
 
     private String refreshTokenBody(String token) {
