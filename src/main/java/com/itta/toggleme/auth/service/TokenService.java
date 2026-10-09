@@ -42,7 +42,7 @@ public class TokenService {
     @Transactional
     public TokenResponse reissue(String refreshToken) {
         Instant now = Instant.now();
-        RefreshToken savedToken = refreshTokenRepository.findByTokenHash(hash(refreshToken))
+        RefreshToken savedToken = refreshTokenRepository.findByTokenHashForUpdate(hash(refreshToken))
                 .filter(token -> token.isUsable(now))
                 .orElseThrow(InvalidRefreshTokenException::new);
 
