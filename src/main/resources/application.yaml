@@ -4,7 +4,7 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://localhost:${DB_PORT:3306}/toggleme
+    url: jdbc:mysql://localhost:${DB_PORT:3306}/${DB_NAME:toggleme}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
@@ -15,3 +15,11 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiry: 30m
+  refresh-token-expiry: 14d
+
+kakao:
+  app-id: ${KAKAO_APP_ID:}
