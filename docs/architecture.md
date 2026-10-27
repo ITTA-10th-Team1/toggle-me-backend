@@ -17,11 +17,19 @@
 ```plain text
 global/
 ├── config/
-├── exception/
-├── response/
-└── entity/        // BaseTimeEntity
+├── entity/        // BaseTimeEntity
+├── exception/     // ErrorCode, ErrorResponse, GlobalExceptionHandler
+└── security/      // Spring Security, JWT
 
 auth/
+├── client/        // 카카오 API 호출
+├── controller/
+├── service/
+├── repository/
+├── domain/
+├── dto/
+└── exception/
+
 image/             // S3 업로드, presigned URL
 
 member/
@@ -29,21 +37,24 @@ member/
 ├── service/
 ├── repository/
 ├── domain/
-└── dto/
+├── dto/
+└── exception/
 
 room/
 ├── controller/
 ├── service/
 ├── repository/
 ├── domain/
-└── dto/
+├── dto/
+└── exception/
 
 item/
 ├── controller/
 ├── service/
 ├── repository/
 ├── domain/
-└── dto/
+├── dto/
+└── exception/
 ```
 
 - 패키지명은 영문 소문자 단수형을 쓴다 (`item` ○ / `items` ✕)
