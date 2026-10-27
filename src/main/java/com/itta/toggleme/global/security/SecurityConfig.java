@@ -24,7 +24,8 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/**", "/api/v1/auth/token/refresh")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/**", "/api/v1/auth/token/refresh",
+                                "/api/v1/auth/signup", "/api/v1/auth/login")
                         .permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                         .anyRequest().authenticated())
