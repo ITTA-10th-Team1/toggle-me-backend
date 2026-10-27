@@ -97,7 +97,7 @@ build: QueryDSL 의존성 추가
 
 | Scope | 적용 범위 |
 | --- | --- |
-| `auth` | 로그인·인증 (방식 확정 후 구체화) |
+| `auth` | 카카오 로그인, JWT 발급·갱신, 로그아웃 |
 | `member` | 회원 정보 및 프로필 |
 | `room` | 내 방 조회, 방 공개 설정, 공유 링크 발급·폐기·조회 |
 | `item` | 아이템 등록·조회·수정·삭제, 아이템 공개 설정 |
@@ -144,5 +144,6 @@ build: QueryDSL 의존성 추가
 - PR은 리뷰어 1명 승인 후 병합한다
 - 병합 방식은 squash merge
 - 병합된 브랜치는 삭제한다
-- `main`, `develop`에는 직접 push하지 않는다 (GitHub 브랜치 보호 규칙)
+- `main`, `develop`에는 직접 push하지 않는다 (`develop`은 GitHub ruleset으로 보호 중)
+- PR 본문은 [PR 템플릿](../.github/pull_request_template.md)을 따른다
 - PR 전 확인 항목은 [quality-gates.md](quality-gates.md)
