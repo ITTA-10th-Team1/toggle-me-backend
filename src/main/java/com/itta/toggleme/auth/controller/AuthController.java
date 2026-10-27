@@ -36,13 +36,13 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<LoginResponse> signUp(@Valid @RequestBody LocalSignUpRequest request) {
-        LoginResponse response = localAuthService.signUp(request.email(), request.password(), request.nickname());
+        LoginResponse response = localAuthService.signUp(request.loginId(), request.password(), request.nickname());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LocalLoginRequest request) {
-        return ResponseEntity.ok(localAuthService.login(request.email(), request.password()));
+        return ResponseEntity.ok(localAuthService.login(request.loginId(), request.password()));
     }
 
     @PostMapping("/token/refresh")

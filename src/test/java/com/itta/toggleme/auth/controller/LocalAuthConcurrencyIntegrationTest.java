@@ -93,14 +93,14 @@ class LocalAuthConcurrencyIntegrationTest {
     private int signUp(String email) throws Exception {
         return mockMvc.perform(post(SIGN_UP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
+                        .content("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
                 .andReturn().getResponse().getStatus();
     }
 
     private int login(String email) throws Exception {
         return mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
+                        .content("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
                 .andReturn().getResponse().getStatus();
     }
 

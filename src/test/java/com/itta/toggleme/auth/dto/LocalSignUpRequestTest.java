@@ -31,20 +31,20 @@ class LocalSignUpRequestTest {
     @NullAndEmptySource
     @ValueSource(strings = {" ", "   "})
     void 이메일이_비어_있으면_검증에_실패한다(String email) {
-        assertThat(violatedFields(email, VALID_PASSWORD, null)).containsExactly("email");
+        assertThat(violatedFields(email, VALID_PASSWORD, null)).containsExactly("loginId");
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"plain", "user@", "@example.com", "user name@example.com"})
     void 이메일_형식이_잘못되면_검증에_실패한다(String email) {
-        assertThat(violatedFields(email, VALID_PASSWORD, null)).containsExactly("email");
+        assertThat(violatedFields(email, VALID_PASSWORD, null)).containsExactly("loginId");
     }
 
     @Test
     void 이메일이_255자를_넘으면_검증에_실패한다() {
         String longEmail = "a".repeat(250) + "@example.com";
 
-        assertThat(violatedFields(longEmail, VALID_PASSWORD, null)).containsExactly("email");
+        assertThat(violatedFields(longEmail, VALID_PASSWORD, null)).containsExactly("loginId");
     }
 
     @ParameterizedTest
@@ -86,7 +86,7 @@ class LocalSignUpRequestTest {
     @Test
     void 여러_필드가_잘못되면_모두_알려준다() {
         assertThat(violatedFields("invalid", "short", "가".repeat(31)))
-                .containsExactlyInAnyOrder("email", "password", "nickname");
+                .containsExactlyInAnyOrder("loginId", "password", "nickname");
     }
 
     @Test

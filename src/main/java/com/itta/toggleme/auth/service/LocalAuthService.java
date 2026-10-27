@@ -2,7 +2,7 @@ package com.itta.toggleme.auth.service;
 
 import com.itta.toggleme.auth.dto.LoginResponse;
 import com.itta.toggleme.auth.exception.CredentialsInvalidException;
-import com.itta.toggleme.auth.exception.EmailAlreadyExistsException;
+import com.itta.toggleme.auth.exception.LoginIdAlreadyExistsException;
 import com.itta.toggleme.member.domain.LocalAccount;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.domain.MemberStatus;
@@ -28,10 +28,10 @@ public class LocalAuthService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public LoginResponse signUp(String email, String password, String nickname) {
-        String normalizedEmail = LocalAccount.normalizeEmail(email);
+    public LoginResponse signUp(String loginId, String password, String nickname) {
+        String normalizedEmail = LocalAccount.normalizeEmail(loginId);
         if (localAccountRepository.existsByEmail(normalizedEmail)) {
-            throw new EmailAlreadyExistsException();
+            throw new LoginIdAlreadyExistsException();
         }
 
         Member member = memberService.register(nickname);
@@ -40,8 +40,9 @@ public class LocalAuthService {
     }
 
     @Transactional
-    public LoginResponse login(String email, String password) {
-        Optional<LocalAccount> found = localAccountRepository.findWithMemberByEmail(LocalAccount.normalizeEmail(email));
+    public LoginResponse login(String loginId, String password) {
+        Optional<LocalAccount> found = localAccountRepository.findWithMemberByEmail(
+                LocalAccount.normalizeEmail(loginId));
         // 계정이 없어도 해시 비교를 수행해서 응답 시간으로 가입 여부를 알 수 없게 한다
         String storedHash = found.map(LocalAccount::getPasswordHash).orElse(MISSING_ACCOUNT_HASH);
         boolean passwordMatches = passwordEncoder.matches(password, storedHash);
@@ -59,7 +60,7 @@ public class LocalAuthService {
             localAccountRepository.saveAndFlush(LocalAccount.create(member, email, passwordHash));
         } catch (DataIntegrityViolationException e) {
             // 중복 확인과 저장 사이에 같은 이메일이 먼저 가입된 경우
-            throw new EmailAlreadyExistsException();
+            throw new LoginIdAlreadyExistsException();
         }
     }
 }

@@ -112,7 +112,7 @@ class LocalLoginIntegrationTest {
         login("", "")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("email", "password")));
+                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("loginId", "password")));
     }
 
     @Test
@@ -121,7 +121,7 @@ class LocalLoginIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("email", "password")));
+                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("loginId", "password")));
     }
 
     @Test
@@ -166,7 +166,7 @@ class LocalLoginIntegrationTest {
         String email = randomEmail();
         mockMvc.perform(post(SIGN_UP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password)))
+                        .content("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(email, password)))
                 .andExpect(status().isCreated());
         return email;
     }
@@ -174,7 +174,7 @@ class LocalLoginIntegrationTest {
     private ResultActions login(String email, String password) throws Exception {
         return mockMvc.perform(post(LOGIN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password)));
+                .content("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(email, password)));
     }
 
     private String responseBody(ResultActions actions) throws Exception {

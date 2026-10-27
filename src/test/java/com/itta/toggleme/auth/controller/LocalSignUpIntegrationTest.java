@@ -75,7 +75,7 @@ class LocalSignUpIntegrationTest {
     void 이메일_앞뒤에_공백이_있으면_가입할_수_없다() throws Exception {
         signUp("  " + randomEmail() + "  ", PASSWORD, null)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[0].field").value("email"));
+                .andExpect(jsonPath("$.errors[0].field").value("loginId"));
     }
 
     @Test
@@ -85,7 +85,7 @@ class LocalSignUpIntegrationTest {
 
         signUp(email, PASSWORD, null)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+                .andExpect(jsonPath("$.code").value("LOGIN_ID_ALREADY_EXISTS"));
     }
 
     @Test
@@ -95,7 +95,7 @@ class LocalSignUpIntegrationTest {
 
         signUp(email.toUpperCase(), PASSWORD, null)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+                .andExpect(jsonPath("$.code").value("LOGIN_ID_ALREADY_EXISTS"));
     }
 
     @Test
@@ -103,7 +103,7 @@ class LocalSignUpIntegrationTest {
         signUp("not-an-email", PASSWORD, null)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[0].field").value("email"));
+                .andExpect(jsonPath("$.errors[0].field").value("loginId"));
     }
 
     @Test
@@ -113,7 +113,7 @@ class LocalSignUpIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("email", "password")));
+                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("loginId", "password")));
     }
 
     @Test
@@ -142,7 +142,7 @@ class LocalSignUpIntegrationTest {
     void 요청_본문이_깨진_JSON이면_400을_반환한다() throws Exception {
         mockMvc.perform(post(SIGN_UP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":"))
+                        .content("{\"loginId\":"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
     }
@@ -167,7 +167,7 @@ class LocalSignUpIntegrationTest {
         String nicknameField = nickname == null ? "" : ",\"nickname\":\"%s\"".formatted(nickname);
         return mockMvc.perform(post(SIGN_UP_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"%s\",\"password\":\"%s\"%s}".formatted(email, password, nicknameField)));
+                .content("{\"loginId\":\"%s\",\"password\":\"%s\"%s}".formatted(email, password, nicknameField)));
     }
 
     private String randomEmail() {

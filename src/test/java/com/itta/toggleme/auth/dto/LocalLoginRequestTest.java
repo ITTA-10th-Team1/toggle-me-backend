@@ -26,7 +26,7 @@ class LocalLoginRequestTest {
     @NullAndEmptySource
     @ValueSource(strings = {" ", "   "})
     void 이메일이_비어_있으면_검증에_실패한다(String email) {
-        assertThat(violatedFields(email, VALID_PASSWORD)).containsExactly("email");
+        assertThat(violatedFields(email, VALID_PASSWORD)).containsExactly("loginId");
     }
 
     @ParameterizedTest
@@ -56,7 +56,7 @@ class LocalLoginRequestTest {
 
     @Test
     void 이메일이_255자를_넘으면_검증에_실패한다() {
-        assertThat(violatedFields("a".repeat(256), VALID_PASSWORD)).containsExactly("email");
+        assertThat(violatedFields("a".repeat(256), VALID_PASSWORD)).containsExactly("loginId");
     }
 
     @Test

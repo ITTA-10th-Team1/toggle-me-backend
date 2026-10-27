@@ -9,7 +9,7 @@ public record LocalSignUpRequest(
         @NotBlank(message = "이메일은 필수입니다.")
         @Email(message = "이메일 형식이 올바르지 않습니다.")
         @Size(max = 255, message = "이메일은 255자 이하여야 합니다.")
-        String email,
+        String loginId,
 
         @NotBlank(message = "비밀번호는 필수입니다.")
         @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
@@ -22,6 +22,6 @@ public record LocalSignUpRequest(
 
     @Override
     public String toString() {
-        return "LocalSignUpRequest[email=" + email + ", nickname=" + nickname + "]";
+        return "LocalSignUpRequest[loginId=" + loginId + ", nickname=" + nickname + "]";
     }
 }

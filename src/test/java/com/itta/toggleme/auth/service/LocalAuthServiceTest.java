@@ -14,7 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.itta.toggleme.auth.dto.LoginResponse;
 import com.itta.toggleme.auth.dto.TokenResponse;
 import com.itta.toggleme.auth.exception.CredentialsInvalidException;
-import com.itta.toggleme.auth.exception.EmailAlreadyExistsException;
+import com.itta.toggleme.auth.exception.LoginIdAlreadyExistsException;
 import com.itta.toggleme.global.exception.ErrorCode;
 import com.itta.toggleme.member.domain.LocalAccount;
 import com.itta.toggleme.member.domain.Member;
@@ -77,8 +77,8 @@ class LocalAuthServiceTest {
         given(localAccountRepository.existsByEmail("user@example.com")).willReturn(true);
 
         assertThatThrownBy(() -> localAuthService.signUp("user@example.com", "password1", "토글러"))
-                .isInstanceOf(EmailAlreadyExistsException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
+                .isInstanceOf(LoginIdAlreadyExistsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_ID_ALREADY_EXISTS);
 
         verifyNoInteractions(memberService, passwordEncoder, tokenService);
         verify(localAccountRepository, never()).saveAndFlush(any(LocalAccount.class));
@@ -94,8 +94,8 @@ class LocalAuthServiceTest {
                 .given(localAccountRepository).saveAndFlush(any(LocalAccount.class));
 
         assertThatThrownBy(() -> localAuthService.signUp("user@example.com", "password1", "토글러"))
-                .isInstanceOf(EmailAlreadyExistsException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
+                .isInstanceOf(LoginIdAlreadyExistsException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_ID_ALREADY_EXISTS);
 
         verifyNoInteractions(tokenService);
     }
