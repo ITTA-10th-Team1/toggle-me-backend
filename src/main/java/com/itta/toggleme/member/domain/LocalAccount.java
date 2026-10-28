@@ -28,22 +28,34 @@ public class LocalAccount extends BaseTimeEntity {
     private Member member;
 
     @Column(nullable = false, length = 255)
+    private String loginId;
+
+    @Column(nullable = false, length = 255)
     private String email;
 
     @Column(nullable = false, length = 100)
     private String passwordHash;
 
-    private LocalAccount(Member member, String email, String passwordHash) {
+    private LocalAccount(Member member, String loginId, String email, String passwordHash) {
         this.member = member;
+        this.loginId = loginId;
         this.email = email;
         this.passwordHash = passwordHash;
     }
 
-    public static LocalAccount create(Member member, String email, String passwordHash) {
-        return new LocalAccount(member, normalizeEmail(email), passwordHash);
+    public static LocalAccount create(Member member, String loginId, String email, String passwordHash) {
+        return new LocalAccount(member, normalizeLoginId(loginId), normalizeEmail(email), passwordHash);
+    }
+
+    public static String normalizeLoginId(String loginId) {
+        return normalize(loginId);
     }
 
     public static String normalizeEmail(String email) {
-        return email.strip().toLowerCase(Locale.ROOT);
+        return normalize(email);
+    }
+
+    private static String normalize(String value) {
+        return value.strip().toLowerCase(Locale.ROOT);
     }
 }

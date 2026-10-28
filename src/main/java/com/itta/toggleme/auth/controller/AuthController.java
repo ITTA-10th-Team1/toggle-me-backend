@@ -36,7 +36,8 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<LoginResponse> signUp(@Valid @RequestBody LocalSignUpRequest request) {
-        LoginResponse response = localAuthService.signUp(request.loginId(), request.password(), request.nickname());
+        LoginResponse response = localAuthService.signUp(
+                request.loginId(), request.email(), request.password(), request.nickname());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
