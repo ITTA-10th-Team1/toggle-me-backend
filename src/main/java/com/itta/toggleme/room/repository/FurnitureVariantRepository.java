@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface FurnitureVariantRepository extends JpaRepository<FurnitureVariant, Long> {
 
     List<FurnitureVariant> findAllByFurnitureTypeIdAndStatusOrderById(Long furnitureTypeId, CatalogStatus status);
+
+    List<FurnitureVariant> findAllByIdInAndStatus(List<Long> ids, CatalogStatus status);
 }

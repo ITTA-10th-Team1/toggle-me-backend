@@ -2,8 +2,11 @@ package com.itta.toggleme.member.service;
 
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.exception.HandleGenerationFailedException;
+import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.repository.MemberRepository;
+import com.itta.toggleme.room.service.RoomService;
 import java.security.SecureRandom;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,12 +24,21 @@ public class MemberService {
     private static final int HANDLE_MAX_ATTEMPTS = 5;
 
     private final MemberRepository memberRepository;
+    private final RoomService roomService;
     private final SecureRandom random = new SecureRandom();
 
     @Transactional
     public Member register(String nickname) {
         Member member = Member.create(generateUniqueHandle(), normalizeNickname(nickname));
         return memberRepository.save(member);
+    }
+
+    @Transactional
+    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds) {
+        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds);
+        member.completeOnboarding();
+        return roomId;
     }
 
     private String generateUniqueHandle() {
