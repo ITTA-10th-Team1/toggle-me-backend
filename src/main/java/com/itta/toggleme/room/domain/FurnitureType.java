@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,6 +31,18 @@ public class FurnitureType extends BaseTimeEntity {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
+    @Column(name = "position_x", precision = 10, scale = 4)
+    private BigDecimal positionX;
+
+    @Column(name = "position_y", precision = 10, scale = 4)
+    private BigDecimal positionY;
+
+    @Column(precision = 10, scale = 4)
+    private BigDecimal rotation;
+
+    @Column(name = "render_order")
+    private Integer renderOrder;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private CatalogStatus status;
@@ -43,5 +56,21 @@ public class FurnitureType extends BaseTimeEntity {
 
     public static FurnitureType create(String code, String name, int displayOrder) {
         return new FurnitureType(code, name, displayOrder);
+    }
+
+    public void configurePlacement(
+            BigDecimal positionX,
+            BigDecimal positionY,
+            BigDecimal rotation,
+            int renderOrder
+    ) {
+        this.positionX = positionX;
+        this.positionY = positionY;
+        this.rotation = rotation;
+        this.renderOrder = renderOrder;
+    }
+
+    public boolean hasConfiguredPlacement() {
+        return positionX != null && positionY != null && rotation != null && renderOrder != null;
     }
 }

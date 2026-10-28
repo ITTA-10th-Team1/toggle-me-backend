@@ -26,11 +26,23 @@ public enum ErrorCode {
 
     // member
     HANDLE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "회원 핸들 생성에 실패했습니다."),
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
+    HANDLE_INVALID(HttpStatus.BAD_REQUEST, "핸들 형식이 올바르지 않습니다."),
+    HANDLE_RESERVED(HttpStatus.BAD_REQUEST, "사용할 수 없는 핸들입니다."),
+    HANDLE_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 핸들입니다."),
+    MEMBER_PROFILE_REQUIRED(HttpStatus.CONFLICT, "프로필 설정을 먼저 완료해야 합니다."),
+    MEMBER_ONBOARDING_ALREADY_COMPLETED(HttpStatus.CONFLICT, "온보딩이 완료된 회원은 프로필을 변경할 수 없습니다."),
 
     // room
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."),
     ROOM_STYLE_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "기본 방 스타일이 등록되어 있지 않습니다."),
-    FURNITURE_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "가구 종류를 찾을 수 없습니다.");
+    FURNITURE_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "가구 종류를 찾을 수 없습니다."),
+    FURNITURE_VARIANT_NOT_FOUND(HttpStatus.NOT_FOUND, "가구 디자인을 찾을 수 없습니다."),
+    INVALID_FURNITURE_SELECTION(HttpStatus.BAD_REQUEST, "가구 선택이 올바르지 않습니다."),
+    FURNITURE_PLACEMENT_NOT_CONFIGURED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "가구의 고정 위치가 등록되어 있지 않습니다."
+    );
 
     private final HttpStatus status;
     private final String message;
