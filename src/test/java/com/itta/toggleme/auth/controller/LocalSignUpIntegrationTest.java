@@ -44,7 +44,8 @@ class LocalSignUpIntegrationTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.onboardingRequired").value(true));
+                .andExpect(jsonPath("$.onboardingRequired").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("PROFILE"));
 
         LocalAccount account = localAccountRepository.findWithMemberByEmail(email).orElseThrow();
         assertThat(account.getPasswordHash()).startsWith("$2").isNotEqualTo(PASSWORD);

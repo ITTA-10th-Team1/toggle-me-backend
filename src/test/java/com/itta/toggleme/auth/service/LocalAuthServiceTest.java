@@ -53,7 +53,7 @@ class LocalAuthServiceTest {
     private LocalAuthService localAuthService;
 
     @Test
-    void 가입하면_해시된_비밀번호로_자체_계정을_저장하고_온보딩이_필요한_토큰을_발급한다() {
+    void 가입하면_해시된_자체_계정과_온보딩_토큰을_발급한다() {
         Member member = Member.create("user_test0001", "토글러");
         given(localAccountRepository.existsByEmail("user@example.com")).willReturn(false);
         given(memberService.register("토글러")).willReturn(member);
@@ -73,7 +73,7 @@ class LocalAuthServiceTest {
     }
 
     @Test
-    void 이미_가입된_이메일이면_회원을_만들거나_비밀번호를_해시하지_않고_예외를_던진다() {
+    void 이미_가입된_이메일이면_회원_생성과_비밀번호_해시_없이_예외를_던진다() {
         given(localAccountRepository.existsByEmail("user@example.com")).willReturn(true);
 
         assertThatThrownBy(() -> localAuthService.signUp("user@example.com", "password1", "토글러"))
@@ -128,6 +128,7 @@ class LocalAuthServiceTest {
     @Test
     void 온보딩을_마친_회원은_온보딩이_필요하지_않다() {
         Member member = Member.create("user_test0005", "토글러");
+        member.updateProfile("local_done", "토글러");
         member.completeOnboarding();
         givenAccount(member, "user@example.com", "hashed");
         given(passwordEncoder.matches("password1", "hashed")).willReturn(true);
@@ -136,6 +137,7 @@ class LocalAuthServiceTest {
         LoginResponse response = localAuthService.login("user@example.com", "password1");
 
         assertThat(response.onboardingRequired()).isFalse();
+        assertThat(response.onboardingStep().name()).isEqualTo("DONE");
     }
 
     @Test
@@ -165,7 +167,7 @@ class LocalAuthServiceTest {
     }
 
     @Test
-    void 가입되지_않은_이메일에_임시_해시와_일치하는_비밀번호를_보내도_로그인되지_않는다() {
+    void 미가입_이메일은_임시_해시와_같은_비밀번호로도_로그인할_수_없다() {
         given(localAccountRepository.findWithMemberByEmail("none@example.com")).willReturn(Optional.empty());
         given(passwordEncoder.matches(eq("any-password"), anyString())).willReturn(true);
 

@@ -51,7 +51,8 @@ class KakaoLoginTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.onboardingRequired").value(true));
+                .andExpect(jsonPath("$.onboardingRequired").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("PROFILE"));
 
         assertThat(socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId))
                 .hasValueSatisfying(account -> {
@@ -69,7 +70,8 @@ class KakaoLoginTest {
 
         login()
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.onboardingRequired").value(true));
+                .andExpect(jsonPath("$.onboardingRequired").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("PROFILE"));
 
         assertThat(findMemberId(kakaoId)).isEqualTo(memberId);
     }
@@ -82,7 +84,11 @@ class KakaoLoginTest {
         socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId)
                 .orElseThrow()
                 .getMember()
-                .completeOnboarding();
+                .updateProfile("kakao_done", "카카오닉네임");
+        socialAccountRepository.findWithMember(SocialProvider.KAKAO, kakaoId)
+                .orElseThrow().getMember().completeOnboarding();
+
+        login().andExpect(status().isOk()).andExpect(jsonPath("$.onboardingStep").value("DONE"));
 
         login()
                 .andExpect(status().isOk())

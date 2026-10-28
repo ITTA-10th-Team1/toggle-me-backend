@@ -59,8 +59,22 @@ class LocalLoginIntegrationTest {
     }
 
     @Test
+    void 프로필만_완료한_회원은_가구_단계로_로그인한다() throws Exception {
+        String email = signUpNewMember(PASSWORD);
+        localAccountRepository.findWithMemberByEmail(email).orElseThrow()
+                .getMember().updateProfile("furniture_step", "테스트");
+
+        login(email, PASSWORD)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingRequired").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
     void 온보딩을_마친_회원은_온보딩이_필요하지_않다() throws Exception {
         String email = signUpNewMember(PASSWORD);
+        localAccountRepository.findWithMemberByEmail(email).orElseThrow()
+                .getMember().updateProfile("local_done", "테스트");
         localAccountRepository.findWithMemberByEmail(email).orElseThrow().getMember().completeOnboarding();
 
         login(email, PASSWORD)
