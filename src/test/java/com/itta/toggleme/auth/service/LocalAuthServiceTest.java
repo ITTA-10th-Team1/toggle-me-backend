@@ -168,6 +168,7 @@ class LocalAuthServiceTest {
     @Test
     void 온보딩을_마친_회원은_온보딩이_필요하지_않다() {
         Member member = Member.create("user_test0007", "토글러");
+        member.updateProfile("local_done", "토글러");
         member.completeOnboarding();
         givenAccount(member, "chaeee22", "hashed");
         given(passwordEncoder.matches("password1", "hashed")).willReturn(true);
@@ -176,6 +177,7 @@ class LocalAuthServiceTest {
         LoginResponse response = localAuthService.login("chaeee22", "password1");
 
         assertThat(response.onboardingRequired()).isFalse();
+        assertThat(response.onboardingStep().name()).isEqualTo("DONE");
     }
 
     @Test

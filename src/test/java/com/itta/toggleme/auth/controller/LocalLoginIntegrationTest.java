@@ -77,13 +77,28 @@ class LocalLoginIntegrationTest {
     }
 
     @Test
-    void 온보딩을_마친_회원은_온보딩이_필요하지_않다() throws Exception {
+    void 프로필만_완료한_회원은_가구_단계로_로그인한다() throws Exception {
         String loginId = signUpNewMember(PASSWORD).loginId();
-        localAccountRepository.findWithMemberByLoginId(loginId).orElseThrow().getMember().completeOnboarding();
+        localAccountRepository.findWithMemberByLoginId(loginId).orElseThrow()
+                .getMember().updateProfile("furniture_step", "테스트");
 
         login(loginId, PASSWORD)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.onboardingRequired").value(false));
+                .andExpect(jsonPath("$.onboardingRequired").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
+    void 온보딩을_마친_회원은_온보딩이_필요하지_않다() throws Exception {
+        String loginId = signUpNewMember(PASSWORD).loginId();
+        Member member = localAccountRepository.findWithMemberByLoginId(loginId).orElseThrow().getMember();
+        member.updateProfile("local_done", "테스트");
+        member.completeOnboarding();
+
+        login(loginId, PASSWORD)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingRequired").value(false))
+                .andExpect(jsonPath("$.onboardingStep").value("DONE"));
     }
 
     @Test

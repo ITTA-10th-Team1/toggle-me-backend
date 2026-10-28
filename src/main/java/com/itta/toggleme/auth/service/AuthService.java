@@ -32,7 +32,7 @@ public class AuthService {
                 .orElseGet(() -> registerKakaoMember(kakaoUser));
 
         TokenResponse token = tokenService.issue(member);
-        return LoginResponse.of(token, !member.isOnboardingCompleted());
+        return LoginResponse.of(token, member);
     }
 
     private Member registerKakaoMember(KakaoUserInfo kakaoUser) {

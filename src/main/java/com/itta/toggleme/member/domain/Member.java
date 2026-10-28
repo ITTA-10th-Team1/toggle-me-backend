@@ -37,6 +37,9 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean onboardingCompleted;
 
+    @Column(nullable = false)
+    private boolean profileCompleted;
+
     private Member(String handle, String nickname) {
         this.handle = handle;
         this.nickname = nickname;
@@ -50,5 +53,18 @@ public class Member extends BaseTimeEntity {
 
     public void completeOnboarding() {
         this.onboardingCompleted = true;
+    }
+
+    public void updateProfile(String handle, String nickname) {
+        this.handle = handle;
+        this.nickname = nickname;
+        this.profileCompleted = true;
+    }
+
+    public OnboardingStep getOnboardingStep() {
+        if (!profileCompleted) {
+            return OnboardingStep.PROFILE;
+        }
+        return onboardingCompleted ? OnboardingStep.DONE : OnboardingStep.FURNITURE;
     }
 }

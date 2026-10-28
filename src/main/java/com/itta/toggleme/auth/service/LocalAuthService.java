@@ -42,7 +42,7 @@ public class LocalAuthService {
 
         Member member = memberService.register(nickname);
         saveAccount(member, normalizedLoginId, normalizedEmail, passwordEncoder.encode(password));
-        return LoginResponse.of(tokenService.issue(member), !member.isOnboardingCompleted());
+        return LoginResponse.of(tokenService.issue(member), member);
     }
 
     @Transactional
@@ -58,7 +58,7 @@ public class LocalAuthService {
                 .map(LocalAccount::getMember)
                 .filter(foundMember -> foundMember.getStatus() == MemberStatus.ACTIVE)
                 .orElseThrow(CredentialsInvalidException::new);
-        return LoginResponse.of(tokenService.issue(member), !member.isOnboardingCompleted());
+        return LoginResponse.of(tokenService.issue(member), member);
     }
 
     private void saveAccount(Member member, String loginId, String email, String passwordHash) {
