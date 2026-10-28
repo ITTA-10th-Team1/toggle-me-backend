@@ -3,6 +3,9 @@ package com.itta.toggleme.auth.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -16,6 +19,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -136,6 +140,43 @@ class LocalAuthConcurrencyIntegrationTest {
         List<Outcome> outcomes = runConcurrently(CONCURRENT_REQUESTS, () -> login(loginId));
 
         assertThat(statuses(outcomes)).hasSize(CONCURRENT_REQUESTS).containsOnly(200);
+    }
+
+    @Test
+    void 동시_중복_가입이_겹쳐도_서버_로그에_이메일과_아이디가_남지_않는다() throws Exception {
+        Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        rootLogger.addAppender(appender);
+        List<String> sensitiveValues = new ArrayList<>();
+        try {
+            for (int round = 0; round < 2; round++) {
+                String sameLoginId = newLoginId();
+                sensitiveValues.add(sameLoginId);
+                List<Callable<Outcome>> sameLoginIdTasks = new ArrayList<>();
+                for (int i = 0; i < 8; i++) {
+                    String email = newEmail();
+                    sensitiveValues.add(email);
+                    sameLoginIdTasks.add(() -> signUp(sameLoginId, email));
+                }
+                runConcurrently(sameLoginIdTasks);
+
+                String sameEmail = newEmail();
+                sensitiveValues.add(sameEmail);
+                List<Callable<Outcome>> sameEmailTasks = new ArrayList<>();
+                for (int i = 0; i < 8; i++) {
+                    String loginId = newLoginId();
+                    sensitiveValues.add(loginId);
+                    sameEmailTasks.add(() -> signUp(loginId, sameEmail));
+                }
+                runConcurrently(sameEmailTasks);
+            }
+        } finally {
+            rootLogger.detachAppender(appender);
+        }
+
+        assertThat(appender.list).extracting(ILoggingEvent::getFormattedMessage)
+                .noneMatch(message -> sensitiveValues.stream().anyMatch(message::contains));
     }
 
     private Outcome signUp(String loginId, String email) throws Exception {
