@@ -10,8 +10,10 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
+import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +52,7 @@ class RoomControllerTest {
         roomStyleRepository.save(RoomStyle.create(RoomStyleType.WALL, "기본 벽", "room/wall/default.glb"));
         roomStyleRepository.save(RoomStyle.create(RoomStyleType.FLOOR, "기본 바닥", "room/floor/default.glb"));
         owner = saveMember();
-        roomId = roomService.createDefaultRoom(owner);
+        roomId = roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_OFF);
     }
 
     @Test
@@ -114,6 +116,16 @@ class RoomControllerTest {
                         .header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    void 공개_설정_숫자_값은_400을_반환한다() throws Exception {
+        mockMvc.perform(patch("/api/v1/rooms/{roomId}/visibility", roomId)
+                        .header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"visibility\":0}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
     }

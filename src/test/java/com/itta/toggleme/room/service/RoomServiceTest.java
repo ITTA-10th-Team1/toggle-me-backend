@@ -40,11 +40,11 @@ class RoomServiceTest {
     private RoomStyleRepository roomStyleRepository;
 
     @Test
-    void 기본_방을_만들면_비공개_방과_1층이_생성된다() {
+    void 공개_설정을_지정해_방과_1층을_생성한다() {
         saveDefaultStyles();
         Member owner = saveMember();
 
-        Long roomId = roomService.createDefaultRoom(owner);
+        Long roomId = roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_OFF);
 
         assertThat(roomRepository.findById(roomId)).hasValueSatisfying(room -> {
             assertThat(room.getName()).isEqualTo("나의 방");
@@ -58,22 +58,35 @@ class RoomServiceTest {
     }
 
     @Test
-    void 이미_방이_있으면_새_방을_만들지_않는다() {
+    void 공개_방을_생성한다() {
         saveDefaultStyles();
         Member owner = saveMember();
-        Long firstRoomId = roomService.createDefaultRoom(owner);
 
-        Long secondRoomId = roomService.createDefaultRoom(owner);
+        Long roomId = roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_ON);
+
+        assertThat(roomRepository.findById(roomId)).hasValueSatisfying(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_ON));
+    }
+
+    @Test
+    void 이미_방이_있으면_다른_공개_설정으로_재요청해도_기존_방을_유지한다() {
+        saveDefaultStyles();
+        Member owner = saveMember();
+        Long firstRoomId = roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_OFF);
+
+        Long secondRoomId = roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_ON);
 
         assertThat(secondRoomId).isEqualTo(firstRoomId);
-        assertThat(roomRepository.findAllByOwnerIdOrderById(owner.getId())).hasSize(1);
+        assertThat(roomRepository.findAllByOwnerIdOrderById(owner.getId())).singleElement().satisfies(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_OFF));
     }
 
     @Test
     void 기본_스타일이_없으면_방을_만들_수_없다() {
         Member owner = saveMember();
 
-        assertThatThrownBy(() -> roomService.createDefaultRoom(owner))
+        assertThatThrownBy(() ->
+                roomService.createDefaultRoom(owner, List.of(), RoomVisibility.SOCIAL_OFF))
                 .isInstanceOf(RoomStyleNotFoundException.class);
     }
 

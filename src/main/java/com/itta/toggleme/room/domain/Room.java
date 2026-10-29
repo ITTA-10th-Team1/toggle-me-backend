@@ -40,15 +40,15 @@ public class Room extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private RoomStatus status;
 
-    private Room(Member owner, String name) {
+    private Room(Member owner, String name, RoomVisibility visibility) {
         this.owner = owner;
         this.name = name;
-        this.visibility = RoomVisibility.SOCIAL_OFF;
+        this.visibility = visibility;
         this.status = RoomStatus.ACTIVE;
     }
 
-    public static Room create(Member owner, String name) {
-        return new Room(owner, name);
+    public static Room create(Member owner, String name, RoomVisibility visibility) {
+        return new Room(owner, name, visibility);
     }
 
     public void changeVisibility(RoomVisibility visibility) {

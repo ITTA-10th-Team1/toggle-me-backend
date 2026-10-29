@@ -48,16 +48,15 @@ public class RoomService {
     private final FurnitureVariantRepository furnitureVariantRepository;
 
     @Transactional
-    public Long createDefaultRoom(Member owner) {
-        return createDefaultRoom(owner, List.of());
-    }
-
-    @Transactional
-    public Long createDefaultRoom(Member owner, List<Long> furnitureVariantIds) {
+    public Long createDefaultRoom(
+            Member owner,
+            List<Long> furnitureVariantIds,
+            RoomVisibility visibility
+    ) {
         List<FurnitureVariant> variants = findSelectedVariants(furnitureVariantIds);
         return roomRepository.findFirstByOwnerIdOrderById(owner.getId())
                 .map(Room::getId)
-                .orElseGet(() -> createRoomWithFirstFloor(owner, variants));
+                .orElseGet(() -> createRoomWithFirstFloor(owner, variants, visibility));
     }
 
     public List<RoomResponse> getMyRooms(Long memberId) {
@@ -84,11 +83,15 @@ public class RoomService {
         return RoomResponse.from(room);
     }
 
-    private Long createRoomWithFirstFloor(Member owner, List<FurnitureVariant> variants) {
+    private Long createRoomWithFirstFloor(
+            Member owner,
+            List<FurnitureVariant> variants,
+            RoomVisibility visibility
+    ) {
         RoomStyle wallStyle = findDefaultStyle(RoomStyleType.WALL);
         RoomStyle floorStyle = findDefaultStyle(RoomStyleType.FLOOR);
 
-        Room room = roomRepository.save(Room.create(owner, DEFAULT_ROOM_NAME));
+        Room room = roomRepository.save(Room.create(owner, DEFAULT_ROOM_NAME, visibility));
         RoomFloor floor = roomFloorRepository.save(
                 RoomFloor.create(room, wallStyle, floorStyle, FIRST_FLOOR_NUMBER, DEFAULT_FLOOR_NAME)
         );

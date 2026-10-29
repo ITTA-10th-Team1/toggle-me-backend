@@ -10,6 +10,7 @@ import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.exception.MemberOnboardingAlreadyCompletedException;
 import com.itta.toggleme.member.exception.MemberProfileRequiredException;
 import com.itta.toggleme.member.repository.MemberRepository;
+import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.service.RoomService;
 import java.security.SecureRandom;
 import java.util.List;
@@ -49,12 +50,12 @@ public class MemberService {
     }
 
     @Transactional
-    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds) {
+    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
         Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
-        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds);
+        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds, visibility);
         member.completeOnboarding();
         return roomId;
     }
