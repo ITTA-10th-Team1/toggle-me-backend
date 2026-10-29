@@ -1,6 +1,8 @@
 package com.itta.toggleme.room.controller;
 
 import com.itta.toggleme.room.dto.RoomFloorResponse;
+import com.itta.toggleme.room.dto.RoomFurnitureResponse;
+import com.itta.toggleme.room.dto.RoomFurnitureUpdateRequest;
 import com.itta.toggleme.room.dto.RoomResponse;
 import com.itta.toggleme.room.dto.RoomVisibilityUpdateRequest;
 import com.itta.toggleme.room.service.RoomService;
@@ -13,6 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +43,25 @@ public class RoomController {
             @PathVariable Long roomId
     ) {
         return ResponseEntity.ok(roomService.getFloors(memberId(jwt), roomId));
+    }
+
+    @GetMapping("/{roomId}/floors/{floorId}/furniture")
+    public ResponseEntity<List<RoomFurnitureResponse>> getFurniture(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long roomId,
+            @PathVariable Long floorId
+    ) {
+        return ResponseEntity.ok(roomService.getFurniture(memberId(jwt), roomId, floorId));
+    }
+
+    @PutMapping("/{roomId}/floors/{floorId}/furniture")
+    public ResponseEntity<List<RoomFurnitureResponse>> updateFurniture(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long roomId,
+            @PathVariable Long floorId,
+            @Valid @RequestBody RoomFurnitureUpdateRequest request
+    ) {
+        return ResponseEntity.ok(roomService.updateFurniture(memberId(jwt), roomId, floorId, request));
     }
 
     @PatchMapping("/{roomId}/visibility")

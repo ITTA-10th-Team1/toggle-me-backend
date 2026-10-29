@@ -12,20 +12,29 @@ import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
 import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.dto.RoomFloorResponse;
+import com.itta.toggleme.room.dto.RoomFurnitureResponse;
+import com.itta.toggleme.room.dto.RoomFurnitureUpdateRequest;
 import com.itta.toggleme.room.dto.RoomResponse;
 import com.itta.toggleme.room.exception.FurniturePlacementNotConfiguredException;
 import com.itta.toggleme.room.exception.FurnitureVariantNotFoundException;
 import com.itta.toggleme.room.exception.InvalidFurnitureSelectionException;
 import com.itta.toggleme.room.exception.RoomNotFoundException;
 import com.itta.toggleme.room.exception.RoomStyleNotFoundException;
+import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomFloorRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import com.itta.toggleme.room.repository.RoomRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +54,7 @@ public class RoomService {
     private final RoomFloorRepository roomFloorRepository;
     private final RoomFurnitureRepository roomFurnitureRepository;
     private final RoomStyleRepository roomStyleRepository;
+    private final FurnitureTypeRepository furnitureTypeRepository;
     private final FurnitureVariantRepository furnitureVariantRepository;
 
     @Transactional
@@ -74,6 +84,48 @@ public class RoomService {
         return roomFloorRepository.findAllByRoomIdOrderByFloorNumber(room.getId()).stream()
                 .map(RoomFloorResponse::from)
                 .toList();
+    }
+
+    public List<RoomFurnitureResponse> getFurniture(Long memberId, Long roomId, Long floorId) {
+        Room room = findMyRoom(memberId, roomId);
+        RoomFloor floor = findFloor(room.getId(), floorId);
+        List<FurnitureType> types = findActiveFurnitureTypes();
+        return furnitureResponses(types, roomFurnitureRepository.findAllByFloorId(floor.getId()));
+    }
+
+    @Transactional
+    public List<RoomFurnitureResponse> updateFurniture(
+            Long memberId,
+            Long roomId,
+            Long floorId,
+            RoomFurnitureUpdateRequest request
+    ) {
+        Room room = roomRepository.findForUpdateByIdAndOwnerIdAndStatus(roomId, memberId, RoomStatus.ACTIVE)
+                .orElseThrow(RoomNotFoundException::new);
+        RoomFloor floor = findFloor(room.getId(), floorId);
+        List<FurnitureType> types = findActiveFurnitureTypes();
+        Map<Long, RoomFurnitureUpdateRequest.Item> itemsByType = validateSelection(types, request.furniture());
+        Map<Long, FurnitureVariant> variantsById = findRequestedVariants(request.furniture());
+        validateVariantTypes(request.furniture(), variantsById);
+
+        Map<Long, RoomFurniture> furnitureByType = furnitureByType(
+                roomFurnitureRepository.findAllByFloorId(floor.getId())
+        );
+        List<RoomFurniture> furniture = new ArrayList<>();
+        for (FurnitureType type : types) {
+            RoomFurniture roomFurniture = furnitureByType.get(type.getId());
+            if (roomFurniture == null) {
+                if (!type.hasConfiguredPlacement()) {
+                    throw new FurniturePlacementNotConfiguredException();
+                }
+                roomFurniture = placeFurniture(floor, variantsById.get(itemsByType.get(type.getId()).variantId()));
+            }
+            RoomFurnitureUpdateRequest.Item item = itemsByType.get(type.getId());
+            roomFurniture.customize(variantsById.get(item.variantId()), item.hidden());
+            furniture.add(roomFurniture);
+        }
+        roomFurnitureRepository.saveAllAndFlush(furniture);
+        return furnitureResponses(types, furniture);
     }
 
     @Transactional
@@ -147,6 +199,97 @@ public class RoomService {
         return roomStyleRepository.findAllByTypeAndStatusOrderById(type, CatalogStatus.ACTIVE).stream()
                 .findFirst()
                 .orElseThrow(RoomStyleNotFoundException::new);
+    }
+
+    private List<FurnitureType> findActiveFurnitureTypes() {
+        return furnitureTypeRepository.findAllByStatusOrderByDisplayOrder(CatalogStatus.ACTIVE);
+    }
+
+    private RoomFloor findFloor(Long roomId, Long floorId) {
+        return roomFloorRepository.findByIdAndRoomId(floorId, roomId)
+                .orElseThrow(RoomNotFoundException::new);
+    }
+
+    private List<RoomFurnitureResponse> furnitureResponses(
+            List<FurnitureType> types,
+            List<RoomFurniture> furniture
+    ) {
+        Map<Long, RoomFurniture> furnitureByType = furnitureByType(furniture);
+        return types.stream()
+                .map(type -> {
+                    RoomFurniture existing = furnitureByType.get(type.getId());
+                    if (existing != null) {
+                        return RoomFurnitureResponse.from(existing);
+                    }
+                    if (!type.hasConfiguredPlacement()) {
+                        throw new FurniturePlacementNotConfiguredException();
+                    }
+                    FurnitureVariant variant = furnitureVariantRepository
+                            .findFirstByFurnitureTypeIdAndStatusOrderById(type.getId(), CatalogStatus.ACTIVE)
+                            .orElseThrow(FurnitureVariantNotFoundException::new);
+                    return RoomFurnitureResponse.hiddenDefault(type, variant);
+                })
+                .sorted(Comparator.comparingInt(RoomFurnitureResponse::renderOrder)
+                        .thenComparing(RoomFurnitureResponse::furnitureTypeId))
+                .toList();
+    }
+
+    private Map<Long, RoomFurnitureUpdateRequest.Item> validateSelection(
+            List<FurnitureType> types,
+            List<RoomFurnitureUpdateRequest.Item> items
+    ) {
+        Set<Long> activeTypeIds = types.stream().map(FurnitureType::getId).collect(Collectors.toSet());
+        Set<Long> requestedTypeIds = items.stream()
+                .map(RoomFurnitureUpdateRequest.Item::furnitureTypeId)
+                .collect(Collectors.toSet());
+        Set<Long> variantIds = items.stream()
+                .map(RoomFurnitureUpdateRequest.Item::variantId)
+                .collect(Collectors.toSet());
+        long hiddenCount = items.stream().filter(item -> item.hidden()).count();
+        if (items.size() != requestedTypeIds.size()
+                || !requestedTypeIds.equals(activeTypeIds)
+                || items.size() != variantIds.size()
+                || items.size() - hiddenCount < MIN_FURNITURE_COUNT
+                || hiddenCount > 1) {
+            throw new InvalidFurnitureSelectionException();
+        }
+        return items.stream().collect(Collectors.toMap(
+                RoomFurnitureUpdateRequest.Item::furnitureTypeId,
+                Function.identity()
+        ));
+    }
+
+    private Map<Long, FurnitureVariant> findRequestedVariants(List<RoomFurnitureUpdateRequest.Item> items) {
+        List<Long> variantIds = items.stream().map(RoomFurnitureUpdateRequest.Item::variantId).toList();
+        List<FurnitureVariant> variants = furnitureVariantRepository.findAllByIdInAndStatus(
+                variantIds,
+                CatalogStatus.ACTIVE
+        );
+        if (variants.size() != variantIds.size()) {
+            throw new FurnitureVariantNotFoundException();
+        }
+        return variants.stream().collect(Collectors.toMap(FurnitureVariant::getId, Function.identity()));
+    }
+
+    private void validateVariantTypes(
+            List<RoomFurnitureUpdateRequest.Item> items,
+            Map<Long, FurnitureVariant> variantsById
+    ) {
+        if (items.stream().anyMatch(item -> !variantsById.get(item.variantId()).getFurnitureType().getId()
+                .equals(item.furnitureTypeId()))) {
+            throw new InvalidFurnitureSelectionException();
+        }
+    }
+
+    private Map<Long, RoomFurniture> furnitureByType(List<RoomFurniture> furniture) {
+        Map<Long, RoomFurniture> result = new HashMap<>();
+        for (RoomFurniture roomFurniture : furniture) {
+            Long typeId = roomFurniture.getVariant().getFurnitureType().getId();
+            if (result.put(typeId, roomFurniture) != null) {
+                throw new InvalidFurnitureSelectionException();
+            }
+        }
+        return result;
     }
 
     private Room findMyRoom(Long memberId, Long roomId) {
