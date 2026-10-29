@@ -51,7 +51,7 @@ public class MemberService {
 
     @Transactional
     public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
@@ -60,8 +60,12 @@ public class MemberService {
         return roomId;
     }
 
+    public Member getMember(Long memberId) {
+        return memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+    }
+
     public HandleAvailability checkHandleAvailability(Long memberId, String candidate) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         String handle = normalizeHandle(candidate);
         HandleUnavailableReason reason = handleReason(handle);
         if (reason != null) {
@@ -76,7 +80,7 @@ public class MemberService {
 
     @Transactional
     public Member updateProfile(Long memberId, String rawHandle, String rawNickname) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         if (member.isProfileCompleted() && member.isOnboardingCompleted()) {
             throw new MemberOnboardingAlreadyCompletedException();
         }
