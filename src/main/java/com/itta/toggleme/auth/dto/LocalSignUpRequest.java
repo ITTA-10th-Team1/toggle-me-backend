@@ -8,8 +8,8 @@ import jakarta.validation.constraints.Size;
 
 public record LocalSignUpRequest(
         @NotBlank(message = "아이디는 필수입니다.")
-        @Pattern(regexp = "[A-Za-z][A-Za-z0-9_]{3,19}",
-                message = "아이디는 영문으로 시작하고 영문, 숫자, 밑줄(_)만 사용해 4~20자로 입력해 주세요.")
+        @Pattern(regexp = "[a-z0-9]{4,20}",
+                message = "아이디는 영문 소문자와 숫자만 사용해 4~20자로 입력해 주세요.")
         String loginId,
 
         @NotBlank(message = "이메일은 필수입니다.")

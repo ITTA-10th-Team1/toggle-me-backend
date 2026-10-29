@@ -66,11 +66,11 @@ class LocalSignUpIntegrationTest {
     }
 
     @Test
-    void 아이디와_이메일은_소문자로_정규화되어_저장된다() throws Exception {
+    void 이메일은_소문자로_정규화되어_저장된다() throws Exception {
         String loginId = randomLoginId();
         String email = randomEmail();
 
-        signUp(loginId.toUpperCase(), email.toUpperCase(), PASSWORD, null).andExpect(status().isCreated());
+        signUp(loginId, email.toUpperCase(), PASSWORD, null).andExpect(status().isCreated());
 
         LocalAccount account = localAccountRepository.findWithMemberByLoginId(loginId).orElseThrow();
         assertThat(account.getLoginId()).isEqualTo(loginId);
@@ -88,13 +88,16 @@ class LocalSignUpIntegrationTest {
     }
 
     @Test
-    void 대소문자만_다른_아이디로_다시_가입하면_409를_반환한다() throws Exception {
-        String loginId = randomLoginId();
-        signUp(loginId, randomEmail(), PASSWORD, null).andExpect(status().isCreated());
+    void 대문자가_섞인_아이디는_가입할_수_없다() throws Exception {
+        signUp(randomLoginId().toUpperCase(), randomEmail(), PASSWORD, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("loginId"));
+    }
 
-        signUp(loginId.toUpperCase(), randomEmail(), PASSWORD, null)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("LOGIN_ID_ALREADY_EXISTS"));
+    @Test
+    void 숫자로_시작하는_아이디도_가입할_수_있다() throws Exception {
+        signUp("1" + randomLoginId(), randomEmail(), PASSWORD, null).andExpect(status().isCreated());
     }
 
     @Test
