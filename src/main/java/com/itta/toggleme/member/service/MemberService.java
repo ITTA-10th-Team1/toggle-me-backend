@@ -60,6 +60,10 @@ public class MemberService {
         return roomId;
     }
 
+    public Member getMember(Long memberId) {
+        return memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+    }
+
     public HandleAvailability checkHandleAvailability(Long memberId, String candidate) {
         Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
         String handle = normalizeHandle(candidate);

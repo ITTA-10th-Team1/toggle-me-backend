@@ -74,6 +74,61 @@ class MemberControllerTest {
     }
 
     @Test
+    void 내_정보를_조회하면_온보딩_단계를_함께_알려준다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").value(member.getId()))
+                .andExpect(jsonPath("$.handle").value(member.getHandle()))
+                .andExpect(jsonPath("$.nickname").value("토글러"))
+                .andExpect(jsonPath("$.profileCompleted").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
+    void 프로필을_설정하기_전에는_프로필_단계이고_온보딩을_마치면_완료_단계다() throws Exception {
+        Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
+        String token = "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId());
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileCompleted").value(false))
+                .andExpect(jsonPath("$.onboardingStep").value("PROFILE"));
+
+        incomplete.updateProfile("done_" + randomSuffix(), "토글러");
+        incomplete.completeOnboarding();
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingStep").value("DONE"));
+    }
+
+    @Test
+    void 프로필을_저장하면_다음_온보딩_단계를_응답한다() throws Exception {
+        Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
+
+        mockMvc.perform(patch("/api/v1/members/me/profile")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"handle\":\"step_" + randomSuffix() + "\",\"nickname\":\"토글러\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
+    void 미인증_내_정보_조회는_401이다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 존재하지_않는_회원의_내_정보_조회는_404다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(Long.MAX_VALUE)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+    }
+
+    @Test
     void 핸들_사용_가능_여부를_검사하고_대소문자와_공백을_정규화한다() throws Exception {
         mockMvc.perform(get("/api/v1/members/handle-availability")
                         .param("handle", "  " + member.getHandle().toUpperCase() + "  ")

@@ -36,6 +36,11 @@ public class MemberController {
         return ResponseEntity.ok(new HandleAvailabilityResponse(result.available(), result.reason()));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<MemberProfileResponse> getMe(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(MemberProfileResponse.from(memberService.getMember(Long.valueOf(jwt.getSubject()))));
+    }
+
     @PatchMapping("/me/profile")
     public ResponseEntity<MemberProfileResponse> updateProfile(
             @AuthenticationPrincipal Jwt jwt,
