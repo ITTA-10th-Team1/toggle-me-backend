@@ -85,7 +85,7 @@ class MemberControllerTest {
     }
 
     @Test
-    void 프로필을_설정하기_전에는_프로필_단계이고_온보딩을_마치면_완료_단계다() throws Exception {
+    void 회원_상태가_바뀌면_내_정보의_온보딩_단계도_바뀐다() throws Exception {
         Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
         String token = "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId());
 
