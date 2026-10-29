@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoomFurnitureRepository extends JpaRepository<RoomFurniture, Long> {
 
-    List<RoomFurniture> findAllByFloorIdAndActiveTrueOrderByRenderOrder(Long floorId);
+    List<RoomFurniture> findAllByFloorId(Long floorId);
 }

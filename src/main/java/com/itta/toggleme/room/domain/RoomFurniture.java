@@ -73,4 +73,12 @@ public class RoomFurniture extends BaseTimeEntity {
     ) {
         return new RoomFurniture(floor, variant, positionX, positionY, rotation, renderOrder);
     }
+
+    public void customize(FurnitureVariant variant, boolean hidden) {
+        if (!this.variant.getFurnitureType().getId().equals(variant.getFurnitureType().getId())) {
+            throw new IllegalArgumentException("같은 종류의 가구 디자인만 선택할 수 있습니다.");
+        }
+        this.variant = variant;
+        this.active = !hidden;
+    }
 }
