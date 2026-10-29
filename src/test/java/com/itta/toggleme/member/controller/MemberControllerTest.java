@@ -14,6 +14,7 @@ import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
+import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
@@ -184,15 +185,45 @@ class MemberControllerTest {
         mockMvc.perform(post("/api/v1/members/onboarding")
                         .header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
+                        .content(requestBody(selectedIds, "\"SOCIAL_OFF\"")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").isNumber());
 
         assertThat(member.isOnboardingCompleted()).isTrue();
-        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).hasSize(1);
+        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).singleElement().satisfies(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_OFF));
         assertThat(roomFurnitureRepository.findAll())
                 .hasSize(4)
                 .allSatisfy(furniture -> assertThat(furniture.getPositionX()).isNotNull());
+    }
+
+    @Test
+    void 온보딩_공개_설정이_없거나_null이면_400을_반환한다() throws Exception {
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureVariantIds\":[1,2,3,4]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
+                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
+
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureVariantIds\":[1,2,3,4],\"visibility\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
+                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
+    }
+
+    @Test
+    void 온보딩_공개_설정이_정확한_enum_문자열이_아니면_400을_반환한다() throws Exception {
+        assertInvalidVisibility("\"ON\"");
+        assertInvalidVisibility("\"\"");
+        assertInvalidVisibility("\" SOCIAL_ON \"");
+        assertInvalidVisibility("0");
     }
 
     @Test
@@ -204,7 +235,8 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody(selectedIds)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("furnitureVariantIds"));
     }
 
     @Test
@@ -273,8 +305,22 @@ class MemberControllerTest {
     }
 
     private String requestBody(List<Long> ids) {
+        return requestBody(ids, "\"SOCIAL_ON\"");
+    }
+
+    private String requestBody(List<Long> ids, String visibilityJson) {
         String values = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
-        return "{\"furnitureVariantIds\":[" + values + "]}";
+        return "{\"furnitureVariantIds\":[" + values + "],\"visibility\":" + visibilityJson + "}";
+    }
+
+    private void assertInvalidVisibility(String visibilityJson) throws Exception {
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody(List.of(1L, 2L, 3L, 4L), visibilityJson)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     private String bearer() {

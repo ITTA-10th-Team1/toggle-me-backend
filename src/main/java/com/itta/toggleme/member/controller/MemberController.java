@@ -50,7 +50,11 @@ public class MemberController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody OnboardingRequest request
     ) {
-        Long roomId = memberService.completeOnboarding(Long.valueOf(jwt.getSubject()), request.furnitureVariantIds());
+        Long roomId = memberService.completeOnboarding(
+                Long.valueOf(jwt.getSubject()),
+                request.furnitureVariantIds(),
+                request.visibility()
+        );
         return ResponseEntity.ok(new OnboardingResponse(roomId));
     }
 }
