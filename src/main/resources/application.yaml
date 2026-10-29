@@ -23,3 +23,8 @@ jwt:
 
 kakao:
   app-id: ${KAKAO_APP_ID:}
+
+logging:
+  level:
+    # 중복 키 오류 로그에 입력값(이메일, 아이디)이 남지 않게 한다. 예상하지 못한 오류는 GlobalExceptionHandler가 기록한다
+    org.hibernate.orm.jdbc.error: ERROR
