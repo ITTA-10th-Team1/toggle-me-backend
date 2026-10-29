@@ -226,7 +226,19 @@ class RoomControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"furniture\":[null]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].reason").value("가구 항목은 비어 있을 수 없습니다."));
+    }
+
+    @Test
+    void 빈_가구_목록은_한글_검증_메시지로_400을_반환한다() throws Exception {
+        mockMvc.perform(put("/api/v1/rooms/{roomId}/floors/{floorId}/furniture", roomId, floorId)
+                        .header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furniture\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("furniture"))
+                .andExpect(jsonPath("$.errors[0].reason").value("가구 목록은 필수입니다."));
     }
 
     @Test

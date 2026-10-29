@@ -49,6 +49,7 @@ public class RoomService {
     private static final int FIRST_FLOOR_NUMBER = 1;
     private static final int MIN_FURNITURE_COUNT = 4;
     private static final int MAX_FURNITURE_COUNT = 5;
+    private static final int MAX_HIDDEN_FURNITURE_COUNT = 1;
 
     private final RoomRepository roomRepository;
     private final RoomFloorRepository roomFloorRepository;
@@ -250,7 +251,7 @@ public class RoomService {
                 || !requestedTypeIds.equals(activeTypeIds)
                 || items.size() != variantIds.size()
                 || items.size() - hiddenCount < MIN_FURNITURE_COUNT
-                || hiddenCount > 1) {
+                || hiddenCount > MAX_HIDDEN_FURNITURE_COUNT) {
             throw new InvalidFurnitureSelectionException();
         }
         return items.stream().collect(Collectors.toMap(
