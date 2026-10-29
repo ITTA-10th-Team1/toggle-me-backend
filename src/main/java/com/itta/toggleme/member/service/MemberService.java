@@ -51,7 +51,8 @@ public class MemberService {
 
     @Transactional
     public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
-        Member member = getMember(memberId);
+        // 트랜잭션의 첫 DB 읽기여야 동시 요청이 앞선 요청이 만든 방을 본다. 앞에 일반 조회를 추가하지 말 것
+        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
