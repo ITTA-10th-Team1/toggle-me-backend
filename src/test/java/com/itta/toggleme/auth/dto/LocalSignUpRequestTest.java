@@ -36,15 +36,16 @@ class LocalSignUpRequestTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"chaeee22", "Toggler_01", "abcd", "A1_b", "a_b_c_d", "abcdefghijklmnopqrst"})
-    void 영문으로_시작하는_4_20자_영문_숫자_밑줄_아이디는_통과한다(String loginId) {
+    @ValueSource(strings = {"chaeee22", "abcd", "1234", "1abcd", "a1b2", "abcdefghijklmnopqrst",
+            "12345678901234567890"})
+    void 영문_소문자와_숫자로_된_4_20자_아이디는_숫자로_시작해도_통과한다(String loginId) {
         assertThat(violatedFields(loginId, VALID_EMAIL, VALID_PASSWORD, null)).isEmpty();
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "abc", "abcdefghijklmnopqrstu", "1abcd", "_abcd", "chae-ee", "chae.ee", "chae ee", "채이이이이",
-            "user@example.com", " abcd", "abcd ", "abcd\n", "abc!", "ａｂｃｄ"
+            "abc", "abcdefghijklmnopqrstu", "_abcd", "a_bcd", "chae-ee", "chae.ee", "chae ee", "채이이이이",
+            "user@example.com", " abcd", "abcd ", "abcd\n", "abc!", "ａｂｃｄ", "ABCD", "Chaeee22", "chaeeE22"
     })
     void 규칙에_맞지_않는_아이디는_검증에_실패한다(String loginId) {
         assertThat(violatedFields(loginId, VALID_EMAIL, VALID_PASSWORD, null)).containsExactly("loginId");
