@@ -18,6 +18,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 필요}
       KAKAO_APP_ID: ${KAKAO_APP_ID:?KAKAO_APP_ID 필요}
+      # S3 자격 증명은 EC2 IAM 역할(toggleme-ec2-role)로 받는다. 컨테이너에서 쓰려면 메타데이터 홉 제한이 2여야 한다
+      S3_BUCKET: toggleme-prod-images
       JDK_JAVA_OPTIONS: ${JDK_JAVA_OPTIONS:--Xmx256m -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError}
       SERVER_TOMCAT_THREADS_MAX: "50"
       MALLOC_ARENA_MAX: "2"

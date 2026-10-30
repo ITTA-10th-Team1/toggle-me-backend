@@ -11,6 +11,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 | 실행 | `~/toggleme`에서 Docker Compose로 app, mysql 실행 ([docker-compose.prod.yml](../../docker-compose.prod.yml)) |
 | 이미지 | `ghcr.io/itta-10th-team1/toggle-me-backend:<커밋 SHA>`, `:latest` (public 패키지) |
 | 배포 | main push → [Backend CD](../../.github/workflows/backend-cd.yml): 테스트 → 이미지 push → SSH로 `compose up -d` → 헬스체크 |
+| 이미지 | S3 `toggleme-prod-images`(비공개). EC2 IAM 역할 `toggleme-ec2-role`이 이 버킷의 Put·Get·Delete만 허용, 인스턴스 메타데이터 홉 제한 2 |
 | 백업 | EBS 스냅샷(Data Lifecycle Manager) 하루 1회, 7일 보관. MySQL binlog는 끈다 |
 
 배포 중 앱이 다시 뜨는 동안(수십 초) API는 502를 반환한다.
