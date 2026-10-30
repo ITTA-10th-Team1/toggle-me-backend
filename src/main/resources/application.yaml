@@ -4,7 +4,7 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://localhost:${DB_PORT:3306}/${DB_NAME:toggleme}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:toggleme}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
@@ -15,6 +15,12 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+server:
+  # Nginx(HTTPS) 뒤에서 X-Forwarded-Proto·For를 반영한다. Tomcat이 내부 프록시 대역에서 온 헤더만 신뢰한다
+  forward-headers-strategy: native
+  tomcat:
+    redirect-context-root: false
 
 jwt:
   secret: ${JWT_SECRET}
