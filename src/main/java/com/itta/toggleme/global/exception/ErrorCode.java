@@ -43,7 +43,14 @@ public enum ErrorCode {
     FURNITURE_PLACEMENT_NOT_CONFIGURED(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "가구의 고정 위치가 등록되어 있지 않습니다."
-    );
+    ),
+
+    // item
+    ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
+    ITEM_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
+    ITEM_RECORDED_DATE_INVALID(HttpStatus.BAD_REQUEST, "미래 날짜로는 기록할 수 없습니다."),
+    ITEM_DAILY_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "하루에 올릴 수 있는 사진 수를 넘었습니다."),
+    FRIDGE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 냉장고를 둔 회원만 사용할 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;
