@@ -3,7 +3,7 @@ package com.itta.toggleme.member.controller;
 import com.itta.toggleme.member.dto.OnboardingRequest;
 import com.itta.toggleme.member.dto.OnboardingResponse;
 import com.itta.toggleme.member.dto.HandleAvailabilityResponse;
-import com.itta.toggleme.member.dto.MemberProfileResponse;
+import com.itta.toggleme.member.dto.MemberResponse;
 import com.itta.toggleme.member.dto.MemberProfileUpdateRequest;
 import com.itta.toggleme.member.service.MemberService;
 import jakarta.validation.Valid;
@@ -36,12 +36,18 @@ public class MemberController {
         return ResponseEntity.ok(new HandleAvailabilityResponse(result.available(), result.reason()));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<MemberResponse> getMe(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(MemberResponse.from(
+                memberService.getMember(Long.valueOf(jwt.getSubject()))));
+    }
+
     @PatchMapping("/me/profile")
-    public ResponseEntity<MemberProfileResponse> updateProfile(
+    public ResponseEntity<MemberResponse> updateProfile(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody MemberProfileUpdateRequest request
     ) {
-        return ResponseEntity.ok(MemberProfileResponse.from(memberService.updateProfile(
+        return ResponseEntity.ok(MemberResponse.from(memberService.updateProfile(
                 Long.valueOf(jwt.getSubject()), request.handle(), request.nickname())));
     }
 
@@ -50,7 +56,11 @@ public class MemberController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody OnboardingRequest request
     ) {
-        Long roomId = memberService.completeOnboarding(Long.valueOf(jwt.getSubject()), request.furnitureVariantIds());
+        Long roomId = memberService.completeOnboarding(
+                Long.valueOf(jwt.getSubject()),
+                request.furnitureVariantIds(),
+                request.visibility()
+        );
         return ResponseEntity.ok(new OnboardingResponse(roomId));
     }
 }

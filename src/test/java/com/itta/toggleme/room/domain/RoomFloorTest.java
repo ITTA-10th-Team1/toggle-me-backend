@@ -10,7 +10,7 @@ class RoomFloorTest {
 
     @Test
     void 벽과_바닥_스타일로_층을_생성한다() {
-        Room room = Room.create(Member.create("user_room", "토글러"), "나의 방");
+        Room room = Room.create(Member.create("user_room", "토글러"), "나의 방", RoomVisibility.SOCIAL_OFF);
         RoomStyle wallStyle = RoomStyle.create(RoomStyleType.WALL, "기본 벽", "room/wall/default.glb");
         RoomStyle floorStyle = RoomStyle.create(RoomStyleType.FLOOR, "기본 바닥", "room/floor/default.glb");
 
@@ -24,7 +24,7 @@ class RoomFloorTest {
 
     @Test
     void 벽과_바닥_스타일_유형이_바뀌면_층을_생성할_수_없다() {
-        Room room = Room.create(Member.create("user_room", "토글러"), "나의 방");
+        Room room = Room.create(Member.create("user_room", "토글러"), "나의 방", RoomVisibility.SOCIAL_OFF);
         RoomStyle wallStyle = RoomStyle.create(RoomStyleType.WALL, "기본 벽", "room/wall/default.glb");
         RoomStyle floorStyle = RoomStyle.create(RoomStyleType.FLOOR, "기본 바닥", "room/floor/default.glb");
 

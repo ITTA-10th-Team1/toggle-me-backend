@@ -10,6 +10,7 @@ import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.exception.MemberOnboardingAlreadyCompletedException;
 import com.itta.toggleme.member.exception.MemberProfileRequiredException;
 import com.itta.toggleme.member.repository.MemberRepository;
+import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.service.RoomService;
 import java.security.SecureRandom;
 import java.util.List;
@@ -49,18 +50,23 @@ public class MemberService {
     }
 
     @Transactional
-    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
+        // 트랜잭션의 첫 DB 읽기여야 동시 요청이 앞선 요청이 만든 방을 본다. 앞에 일반 조회를 추가하지 말 것
+        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
-        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds);
+        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds, visibility);
         member.completeOnboarding();
         return roomId;
     }
 
+    public Member getMember(Long memberId) {
+        return memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+    }
+
     public HandleAvailability checkHandleAvailability(Long memberId, String candidate) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         String handle = normalizeHandle(candidate);
         HandleUnavailableReason reason = handleReason(handle);
         if (reason != null) {
@@ -75,7 +81,7 @@ public class MemberService {
 
     @Transactional
     public Member updateProfile(Long memberId, String rawHandle, String rawNickname) {
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         if (member.isProfileCompleted() && member.isOnboardingCompleted()) {
             throw new MemberOnboardingAlreadyCompletedException();
         }

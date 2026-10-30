@@ -14,6 +14,7 @@ import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
+import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
@@ -70,6 +71,61 @@ class MemberControllerTest {
         roomStyleRepository.save(RoomStyle.create(RoomStyleType.FLOOR, "기본 바닥", "room/floor/default.glb"));
         member = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
         member.updateProfile("member_" + randomSuffix(), "토글러");
+    }
+
+    @Test
+    void 내_정보를_조회하면_온보딩_단계를_함께_알려준다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").value(member.getId()))
+                .andExpect(jsonPath("$.handle").value(member.getHandle()))
+                .andExpect(jsonPath("$.nickname").value("토글러"))
+                .andExpect(jsonPath("$.profileCompleted").value(true))
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
+    void 회원_상태가_바뀌면_내_정보의_온보딩_단계도_바뀐다() throws Exception {
+        Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
+        String token = "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId());
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileCompleted").value(false))
+                .andExpect(jsonPath("$.onboardingStep").value("PROFILE"));
+
+        incomplete.updateProfile("done_" + randomSuffix(), "토글러");
+        incomplete.completeOnboarding();
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingStep").value("DONE"));
+    }
+
+    @Test
+    void 프로필을_저장하면_다음_온보딩_단계를_응답한다() throws Exception {
+        Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
+
+        mockMvc.perform(patch("/api/v1/members/me/profile")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"handle\":\"step_" + randomSuffix() + "\",\"nickname\":\"토글러\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+    }
+
+    @Test
+    void 미인증_내_정보_조회는_401이다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 존재하지_않는_회원의_내_정보_조회는_404다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(Long.MAX_VALUE)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     @Test
@@ -184,15 +240,45 @@ class MemberControllerTest {
         mockMvc.perform(post("/api/v1/members/onboarding")
                         .header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
+                        .content(requestBody(selectedIds, "\"SOCIAL_OFF\"")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").isNumber());
 
         assertThat(member.isOnboardingCompleted()).isTrue();
-        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).hasSize(1);
+        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).singleElement().satisfies(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_OFF));
         assertThat(roomFurnitureRepository.findAll())
                 .hasSize(4)
                 .allSatisfy(furniture -> assertThat(furniture.getPositionX()).isNotNull());
+    }
+
+    @Test
+    void 온보딩_공개_설정이_없거나_null이면_400을_반환한다() throws Exception {
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureVariantIds\":[1,2,3,4]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
+                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
+
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureVariantIds\":[1,2,3,4],\"visibility\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
+                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
+    }
+
+    @Test
+    void 온보딩_공개_설정이_정확한_enum_문자열이_아니면_400을_반환한다() throws Exception {
+        assertInvalidVisibility("\"ON\"");
+        assertInvalidVisibility("\"\"");
+        assertInvalidVisibility("\" SOCIAL_ON \"");
+        assertInvalidVisibility("0");
     }
 
     @Test
@@ -204,7 +290,8 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody(selectedIds)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors[0].field").value("furnitureVariantIds"));
     }
 
     @Test
@@ -273,8 +360,22 @@ class MemberControllerTest {
     }
 
     private String requestBody(List<Long> ids) {
+        return requestBody(ids, "\"SOCIAL_ON\"");
+    }
+
+    private String requestBody(List<Long> ids, String visibilityJson) {
         String values = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
-        return "{\"furnitureVariantIds\":[" + values + "]}";
+        return "{\"furnitureVariantIds\":[" + values + "],\"visibility\":" + visibilityJson + "}";
+    }
+
+    private void assertInvalidVisibility(String visibilityJson) throws Exception {
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody(List.of(1L, 2L, 3L, 4L), visibilityJson)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     private String bearer() {
