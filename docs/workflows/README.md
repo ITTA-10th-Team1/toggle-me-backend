@@ -4,5 +4,4 @@
 
 | 문서 | 사용 시점 |
 | --- | --- |
-
-등록된 워크플로가 아직 없다.
+| [deployment.md](deployment.md) | main 배포, 서버·GitHub 설정, 점검, 롤백 |

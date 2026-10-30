@@ -1,0 +1,66 @@
+# 운영 서버(EC2) 전용. 로컬 개발은 docker-compose.yml을 쓴다
+# 값은 서버의 ~/toggleme/.env에서 읽는다. 항목과 근거는 docs/workflows/deployment.md
+name: toggleme
+
+services:
+  app:
+    image: ghcr.io/itta-10th-team1/toggle-me-backend:${APP_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_NAME: ${DB_NAME:-toggleme}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME 필요}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 필요}
+      KAKAO_APP_ID: ${KAKAO_APP_ID:?KAKAO_APP_ID 필요}
+      JDK_JAVA_OPTIONS: ${JDK_JAVA_OPTIONS:--Xmx256m -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError}
+      SERVER_TOMCAT_THREADS_MAX: "50"
+      MALLOC_ARENA_MAX: "2"
+      TZ: UTC
+    mem_limit: 640m
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command:
+      - --innodb-buffer-pool-size=128M
+      - --innodb-log-buffer-size=16M
+      - --performance-schema=OFF
+      - --max-connections=30
+      - --temptable-max-ram=32M
+      - --disable-log-bin
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-toggleme}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME 필요}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD 필요}
+      TZ: UTC
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # 소켓이 아닌 TCP로 확인해야 초기화용 임시 서버(skip-networking)를 준비 완료로 보지 않는다
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    mem_limit: 320m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql-data:
