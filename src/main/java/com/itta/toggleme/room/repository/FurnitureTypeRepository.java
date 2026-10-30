@@ -11,4 +11,6 @@ public interface FurnitureTypeRepository extends JpaRepository<FurnitureType, Lo
     List<FurnitureType> findAllByStatusOrderByDisplayOrder(CatalogStatus status);
 
     Optional<FurnitureType> findByIdAndStatus(Long id, CatalogStatus status);
+
+    Optional<FurnitureType> findByCode(String code);
 }

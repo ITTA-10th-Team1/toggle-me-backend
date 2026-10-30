@@ -24,6 +24,12 @@ jwt:
 kakao:
   app-id: ${KAKAO_APP_ID:}
 
+aws:
+  s3:
+    region: ${AWS_REGION:ap-northeast-2}
+    # 로컬·테스트는 개발 버킷, 운영은 S3_BUCKET으로 운영 버킷을 지정한다
+    bucket: ${S3_BUCKET:toggleme-dev-images}
+
 logging:
   level:
     # 중복 키 오류 로그에 입력값(이메일, 아이디)이 남지 않게 한다. 예상하지 못한 오류는 GlobalExceptionHandler가 기록한다
