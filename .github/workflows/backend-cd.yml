@@ -98,3 +98,18 @@ jobs:
           curl --fail --silent --show-error --output /dev/null
           --retry 30 --retry-delay 5 --retry-all-errors --max-time 5
           https://api.toggleme.site/actuator/health
+
+      # 실패 원인(예: 앱 기동 실패)을 Actions 로그에서 바로 보려고 서버 상태와 앱 로그를 출력한다
+      # 공개 레포라 로그가 공개된다. 앱이 비밀값을 로그에 남기지 않도록 유지한다
+      - name: Show server status on failure
+        if: failure()
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          fingerprint: ${{ secrets.EC2_HOST_FINGERPRINT }}
+          script: |
+            cd ~/toggleme
+            docker compose -f docker-compose.prod.yml ps -a
+            docker compose -f docker-compose.prod.yml logs --tail 100 app
