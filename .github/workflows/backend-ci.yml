@@ -42,6 +42,8 @@ jobs:
       DB_NAME: toggleme
       DB_USERNAME: toggleme
       DB_PASSWORD: toggleme
+      # 테스트는 Gemini를 호출하지 않는다. 클라이언트 생성에만 필요한 더미 값
+      GEMINI_API_KEY: test-key
 
     steps:
       - name: Checkout

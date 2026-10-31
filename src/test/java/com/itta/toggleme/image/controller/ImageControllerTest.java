@@ -1,14 +1,20 @@
 package com.itta.toggleme.image.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.itta.toggleme.global.security.JwtTokenProvider;
+import com.itta.toggleme.image.domain.ImageAnalysisResult;
+import com.itta.toggleme.image.domain.ImageAnalysisStatus;
+import com.itta.toggleme.image.dto.ImageAnalysisResponse;
 import com.itta.toggleme.image.dto.ImageUploadUrlResponse;
+import com.itta.toggleme.image.service.ImageAnalysisService;
 import com.itta.toggleme.image.service.ImageService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +39,9 @@ class ImageControllerTest {
 
     @MockitoBean
     private ImageService imageService;
+
+    @MockitoBean
+    private ImageAnalysisService imageAnalysisService;
 
     @Test
     void 업로드_주소를_발급한다() throws Exception {
@@ -61,6 +70,33 @@ class ImageControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contentType\":\"image/jpeg\",\"contentLength\":1024}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 분석을_요청하면_202와_분석_ID를_반환한다() throws Exception {
+        given(imageAnalysisService.requestAnalysis(MEMBER_ID, "images/7/a.jpg"))
+                .willReturn(new ImageAnalysisResponse(1L, ImageAnalysisStatus.PENDING, null));
+
+        mockMvc.perform(post("/api/v1/images/analysis")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(MEMBER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"imageKey\":\"images/7/a.jpg\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.analysisId").value(1))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    void 완료된_분석은_추천_태그를_반환한다() throws Exception {
+        given(imageAnalysisService.getAnalysis(MEMBER_ID, 1L)).willReturn(new ImageAnalysisResponse(
+                1L, ImageAnalysisStatus.COMPLETED, new ImageAnalysisResult(List.of("#추리", "#외국소설"))));
+
+        mockMvc.perform(get("/api/v1/images/analysis/1")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(MEMBER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.result.tags[0]").value("#추리"))
+                .andExpect(jsonPath("$.result.tags[1]").value("#외국소설"));
     }
 
     private ResultActions request(String contentType, long contentLength) throws Exception {

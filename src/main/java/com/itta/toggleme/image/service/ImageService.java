@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -63,6 +65,10 @@ public class ImageService {
                         .getObjectRequest(object -> object.bucket(properties.bucket()).key(key)))
                 .url()
                 .toString();
+    }
+
+    public ResponseBytes<GetObjectResponse> download(String key) {
+        return s3Client.getObjectAsBytes(request -> request.bucket(properties.bucket()).key(key));
     }
 
     public void delete(String key) {
