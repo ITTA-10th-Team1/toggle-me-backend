@@ -5,7 +5,9 @@ import com.itta.toggleme.room.dto.RoomFurnitureResponse;
 import com.itta.toggleme.room.dto.RoomFurnitureUpdateRequest;
 import com.itta.toggleme.room.dto.RoomResponse;
 import com.itta.toggleme.room.dto.RoomVisibilityUpdateRequest;
+import com.itta.toggleme.room.dto.RoomTagResponse;
 import com.itta.toggleme.room.service.RoomService;
+import com.itta.toggleme.room.service.RoomTagService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class RoomController {
 
     private final RoomService roomService;
+    private final RoomTagService roomTagService;
 
     @GetMapping
     public ResponseEntity<List<RoomResponse>> getMyRooms(@AuthenticationPrincipal Jwt jwt) {
@@ -35,6 +38,12 @@ public class RoomController {
     @GetMapping("/{roomId}")
     public ResponseEntity<RoomResponse> getMyRoom(@AuthenticationPrincipal Jwt jwt, @PathVariable Long roomId) {
         return ResponseEntity.ok(roomService.getMyRoom(memberId(jwt), roomId));
+    }
+
+    // 가구별 대표 태그. 규칙은 RoomTagService
+    @GetMapping("/{roomId}/tags")
+    public ResponseEntity<List<RoomTagResponse>> getTags(@AuthenticationPrincipal Jwt jwt, @PathVariable Long roomId) {
+        return ResponseEntity.ok(roomTagService.getMyRoomTags(memberId(jwt), roomId));
     }
 
     @GetMapping("/{roomId}/floors")
