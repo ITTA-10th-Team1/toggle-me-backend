@@ -45,6 +45,11 @@ public enum ErrorCode {
             "가구의 고정 위치가 등록되어 있지 않습니다."
     ),
 
+    // image
+    IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
+    IMAGE_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "이미지 분석을 찾을 수 없습니다."),
+    IMAGE_ANALYSIS_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "분석 요청이 많습니다. 잠시 후 다시 시도해 주세요."),
+
     // item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
     ITEM_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
