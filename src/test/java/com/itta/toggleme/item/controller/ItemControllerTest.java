@@ -1,13 +1,17 @@
 package com.itta.toggleme.item.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.itta.toggleme.global.security.JwtTokenProvider;
+import com.itta.toggleme.item.repository.ItemTagRepository;
+import jakarta.persistence.EntityManager;
 import com.itta.toggleme.image.service.ImageService;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
@@ -64,6 +68,12 @@ class ItemControllerTest {
 
     @Autowired
     private RoomService roomService;
+
+    @Autowired
+    private ItemTagRepository itemTagRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @MockitoBean
     private ImageService imageService;
@@ -131,6 +141,61 @@ class ItemControllerTest {
     }
 
     @Test
+    void 고른_태그는_샵과_공백을_떼고_중복을_빼서_순서대로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\" #추리 \", \"외국소설\", \"#추리\"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(2))
+                .andExpect(jsonPath("$.tags[0]").value("추리"))
+                .andExpect(jsonPath("$.tags[1]").value("외국소설"));
+    }
+
+    @Test
+    void 태그_없이도_기록할_수_있다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(0));
+    }
+
+    @Test
+    void 태그가_3개를_넘거나_비었거나_20자를_넘으면_400을_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long typeId = placedTypeIds.get(1);
+
+        create(member, imageKey(member), typeId, null, "[\"a\", \"b\", \"c\", \"d\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+        create(member, imageKey(member), typeId, null, "[\"#\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_TAG_INVALID"));
+        create(member, imageKey(member), typeId, null, "[\"%s\"]".formatted("가".repeat(21)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_TAG_INVALID"));
+    }
+
+    @Test
+    void 태그가_붙은_아이템을_지우면_태그도_지워진다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        String body = create(member, imageKey(member), fridgeTypeId, TODAY, "[\"야식\"]")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long itemId = Long.valueOf(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+        // 등록과 삭제는 실제로 다른 요청이다. 등록 때 영속성 컨텍스트에 남은 태그를 비운다
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(delete("/api/v1/fridge/foods/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNoContent());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(itemTagRepository.findAllByItemIdOrderByPosition(itemId)).isEmpty();
+    }
+
+    @Test
     void 가구_종류와_공개_여부가_없으면_400을_반환한다() throws Exception {
         Member member = saveMemberWithRoom(false);
 
@@ -144,13 +209,18 @@ class ItemControllerTest {
 
     private ResultActions create(Member member, String key, Long furnitureTypeId, LocalDate recordedOn)
             throws Exception {
+        return create(member, key, furnitureTypeId, recordedOn, "null");
+    }
+
+    private ResultActions create(Member member, String key, Long furnitureTypeId, LocalDate recordedOn,
+            String tagsJson) throws Exception {
         String recordedOnJson = recordedOn == null ? "null" : "\"" + recordedOn + "\"";
         return mockMvc.perform(post("/api/v1/items")
                 .header("Authorization", bearer(member))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"imageKey":"%s","furnitureTypeId":%d,"recordedOn":%s,"visibility":"PUBLIC"}
-                        """.formatted(key, furnitureTypeId, recordedOnJson)));
+                        {"imageKey":"%s","furnitureTypeId":%d,"recordedOn":%s,"visibility":"PUBLIC","tags":%s}
+                        """.formatted(key, furnitureTypeId, recordedOnJson, tagsJson)));
     }
 
     private String imageKey(Member member) {
