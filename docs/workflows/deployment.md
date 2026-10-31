@@ -28,6 +28,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 | `DB_ROOT_PASSWORD` | 필수 | mysql 컨테이너만 받는다 |
 | `JWT_SECRET` | 필수 | Base64 32바이트 이상, 로컬과 다른 값 |
 | `KAKAO_APP_ID` | 필수 | 카카오 앱 ID |
+| `GEMINI_API_KEY` | 필수 | 이미지 분석용 Gemini API 키(유료 등급 프로젝트. 무료 등급은 입력 데이터가 제품 개선에 쓰일 수 있다) |
 | `JDK_JAVA_OPTIONS` | 선택 | 메모리 조정 시에만. 지정하면 compose 기본값 전체를 대체한다 |
 
 - DB 계정·비밀번호는 mysql 볼륨을 처음 만들 때만 적용된다. 나중에 바꾸면 `ALTER USER`도 실행한다
