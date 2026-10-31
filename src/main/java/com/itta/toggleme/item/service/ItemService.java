@@ -2,11 +2,14 @@ package com.itta.toggleme.item.service;
 
 import com.itta.toggleme.image.service.ImageService;
 import com.itta.toggleme.item.domain.Item;
+import com.itta.toggleme.item.domain.ItemTag;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
 import com.itta.toggleme.item.exception.ItemFurnitureNotSelectedException;
 import com.itta.toggleme.item.exception.ItemImageInvalidException;
+import com.itta.toggleme.item.exception.ItemTagInvalidException;
 import com.itta.toggleme.item.repository.ItemRepository;
+import com.itta.toggleme.item.repository.ItemTagRepository;
 import com.itta.toggleme.item.service.handler.ItemRecordHandler;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.exception.MemberNotFoundException;
@@ -32,8 +35,10 @@ public class ItemService {
 
     // 앱 사용자 기준 날짜. 해외 사용자를 받게 되면 기기 시간대를 함께 받는다
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
+    private static final int MAX_TAG_LENGTH = 20;
 
     private final ItemRepository itemRepository;
+    private final ItemTagRepository itemTagRepository;
     private final MemberRepository memberRepository;
     private final FurnitureTypeRepository furnitureTypeRepository;
     private final RoomFurnitureRepository roomFurnitureRepository;
@@ -42,6 +47,7 @@ public class ItemService {
 
     public ItemService(
             ItemRepository itemRepository,
+            ItemTagRepository itemTagRepository,
             MemberRepository memberRepository,
             FurnitureTypeRepository furnitureTypeRepository,
             RoomFurnitureRepository roomFurnitureRepository,
@@ -49,6 +55,7 @@ public class ItemService {
             List<ItemRecordHandler> handlers
     ) {
         this.itemRepository = itemRepository;
+        this.itemTagRepository = itemTagRepository;
         this.memberRepository = memberRepository;
         this.furnitureTypeRepository = furnitureTypeRepository;
         this.roomFurnitureRepository = roomFurnitureRepository;
@@ -61,11 +68,15 @@ public class ItemService {
     @Transactional
     public ItemResponse create(Long memberId, ItemCreateRequest request) {
         Item item = record(memberId, request);
-        return ItemResponse.from(item, imageService.createViewUrl(item.getImageKey()));
+        List<String> tags = itemTagRepository.findAllByItemIdOrderByPosition(item.getId()).stream()
+                .map(ItemTag::getName)
+                .toList();
+        return ItemResponse.from(item, imageService.createViewUrl(item.getImageKey()), tags);
     }
 
     @Transactional
     public Item record(Long memberId, ItemCreateRequest request) {
+        List<String> tagNames = normalizeTags(request.tags());
         // 회원 행을 잠가 같은 회원의 동시 등록이 가구별 개수 제한을 넘지 않게 한다
         Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         FurnitureType furnitureType = furnitureTypeRepository.findById(request.furnitureTypeId())
@@ -85,7 +96,7 @@ public class ItemService {
             throw new ItemImageInvalidException();
         }
 
-        return itemRepository.save(Item.record(
+        Item item = itemRepository.save(Item.record(
                 member,
                 furnitureType,
                 recordedOn,
@@ -93,5 +104,26 @@ public class ItemService {
                 request.memo(),
                 request.visibility()
         ));
+        for (int position = 0; position < tagNames.size(); position++) {
+            itemTagRepository.save(ItemTag.of(item, tagNames.get(position), position));
+        }
+        return item;
+    }
+
+    // '#'와 앞뒤 공백을 떼고 같은 태그는 하나만 남긴다. 같은 태그가 같은 값으로 저장돼야 방 태그 집계가 맞는다
+    private static List<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
+            return List.of();
+        }
+        return tags.stream()
+                .map(tag -> {
+                    String name = tag == null ? "" : tag.strip().replaceFirst("^#+", "").strip();
+                    if (name.isEmpty() || name.length() > MAX_TAG_LENGTH) {
+                        throw new ItemTagInvalidException();
+                    }
+                    return name;
+                })
+                .distinct()
+                .toList();
     }
 }

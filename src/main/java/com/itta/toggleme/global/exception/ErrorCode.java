@@ -51,6 +51,7 @@ public enum ErrorCode {
     ITEM_RECORDED_DATE_INVALID(HttpStatus.BAD_REQUEST, "미래 날짜로는 기록할 수 없습니다."),
     ITEM_DAILY_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "하루에 올릴 수 있는 사진 수를 넘었습니다."),
     ITEM_FURNITURE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 둔 가구에만 기록할 수 있습니다."),
+    ITEM_TAG_INVALID(HttpStatus.BAD_REQUEST, "태그는 1~20자로 입력해 주세요."),
     FRIDGE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 냉장고를 둔 회원만 사용할 수 있습니다.");
 
     private final HttpStatus status;
