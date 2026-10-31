@@ -19,6 +19,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 ## 서버 .env
 
 `~/toggleme/.env`에 두고 권한은 600으로 한다. 값은 서버에만 둔다.
+값은 꺾쇠(`<>`)·따옴표 없이 그대로 쓴다. 예: `KAKAO_APP_ID=1234567`
 
 | 키 | 필수 | 설명 |
 | --- | --- | --- |
@@ -72,6 +73,22 @@ docker system df
 | 디스크 사용률 | 70% 경고. 85% 이상이면 배포가 자동으로 중단된다 |
 
 기준을 넘으면 `JDK_JAVA_OPTIONS`·`mem_limit`을 조정하거나 인스턴스를 키운다.
+
+## 헬스체크 실패 시
+
+Backend CD가 실패하면 "Show server status on failure" 단계에 컨테이너 상태와 앱 로그 100줄이 출력된다.
+
+1. `ps -a`에서 app이 `Restarting`이거나 재시작 횟수가 늘고 있으면 앱 기동 실패다. 로그의 `APPLICATION FAILED TO START` 아래 Description을 본다
+2. 설정값 오류면 서버 `.env`를 고치고 다시 만든다
+
+   ```sh
+   cd ~/toggleme
+   APP_TAG=<배포할 커밋 SHA> docker compose -f docker-compose.prod.yml up -d --force-recreate app
+   ```
+
+3. 앱은 떠 있는데 502면 Nginx 설정과 `127.0.0.1:8080` 응답(`curl -s localhost:8080/actuator/health`)을 확인한다
+
+`APP_TAG`를 빼면 `latest`로 뜬다. 배포 기록과 맞추려면 커밋 SHA를 붙인다.
 
 ## 롤백
 
