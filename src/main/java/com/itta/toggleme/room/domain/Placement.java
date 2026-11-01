@@ -1,0 +1,29 @@
+package com.itta.toggleme.room.domain;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
+/**
+ * 가구 배치. 프론트 GLB 장면 좌표(오른손 좌표계, +Y가 위쪽, 바닥은 X·Z)를 그대로 저장한다.
+ * position은 그룹 노드 원점, rotation은 쿼터니언(X, Y, Z, W), scale은 축별 배율이다.
+ * 프론트는 이 값으로 노드의 TRS를 절대값으로 교체한다(T × R × S).
+ */
+@Embeddable
+public record Placement(
+        @Column(name = "position_x") Double positionX,
+        @Column(name = "position_y") Double positionY,
+        @Column(name = "position_z") Double positionZ,
+        @Column(name = "rotation_x") Double rotationX,
+        @Column(name = "rotation_y") Double rotationY,
+        @Column(name = "rotation_z") Double rotationZ,
+        @Column(name = "rotation_w") Double rotationW,
+        @Column(name = "scale_x") Double scaleX,
+        @Column(name = "scale_y") Double scaleY,
+        @Column(name = "scale_z") Double scaleZ
+) {
+
+    // 회전 없음, 크기 1
+    public static Placement at(double x, double y, double z) {
+        return new Placement(x, y, z, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0);
+    }
+}

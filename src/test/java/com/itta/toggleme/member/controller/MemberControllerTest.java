@@ -12,6 +12,7 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
 import com.itta.toggleme.room.domain.RoomVisibility;
@@ -20,7 +21,6 @@ import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import com.itta.toggleme.room.repository.RoomRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -249,7 +249,7 @@ class MemberControllerTest {
                 assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_OFF));
         assertThat(roomFurnitureRepository.findAll())
                 .hasSize(4)
-                .allSatisfy(furniture -> assertThat(furniture.getPositionX()).isNotNull());
+                .allSatisfy(furniture -> assertThat(furniture.getPlacement()).isNotNull());
     }
 
     @Test
@@ -350,7 +350,7 @@ class MemberControllerTest {
         List<FurnitureVariant> variants = new ArrayList<>();
         for (int i = 1; i <= count; i++) {
             FurnitureType type = FurnitureType.create("TYPE_" + i + randomSuffix(), "가구 " + i, i);
-            type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypeRepository.save(type);
             variants.add(furnitureVariantRepository.save(
                     FurnitureVariant.create(type, "기본 디자인", "furniture/type-" + i + ".glb", 1, 1)

@@ -8,6 +8,7 @@ import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.CatalogStatus;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomFloor;
 import com.itta.toggleme.room.domain.RoomFurniture;
 import com.itta.toggleme.room.domain.RoomStyle;
@@ -25,7 +26,6 @@ import com.itta.toggleme.room.repository.RoomFloorRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import com.itta.toggleme.room.repository.RoomRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -292,7 +292,7 @@ class RoomServiceTest {
         for (int i = 1; i <= 5; i++) {
             FurnitureType type = FurnitureType.create(uniqueCode(), "가구 " + i, i);
             if (i < 5 || configureLast) {
-                type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+                type.configurePlacement(Placement.at(i, 0, 0), i);
             }
             types.add(furnitureTypeRepository.save(type));
             variants.add(furnitureVariantRepository.save(
