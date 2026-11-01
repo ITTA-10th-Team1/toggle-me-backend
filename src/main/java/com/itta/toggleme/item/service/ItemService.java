@@ -22,6 +22,7 @@ import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -110,14 +111,14 @@ public class ItemService {
         return item;
     }
 
-    // '#'와 앞뒤 공백을 떼고 같은 태그는 하나만 남긴다. 같은 태그가 같은 값으로 저장돼야 방 태그 집계가 맞는다
+    // '#'와 앞뒤 공백을 떼고 소문자로 바꾼 뒤 같은 태그는 하나만 남긴다. 같은 태그가 같은 값으로 저장돼야 방 태그 집계가 맞는다
     private static List<String> normalizeTags(List<String> tags) {
         if (tags == null) {
             return List.of();
         }
         return tags.stream()
                 .map(tag -> {
-                    String name = tag == null ? "" : tag.strip().replaceFirst("^#+", "").strip();
+                    String name = tag == null ? "" : tag.strip().replaceFirst("^#+", "").strip().toLowerCase(Locale.ROOT);
                     if (name.isEmpty() || name.length() > MAX_TAG_LENGTH) {
                         throw new ItemTagInvalidException();
                     }

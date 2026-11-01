@@ -2,7 +2,8 @@ CREATE TABLE item_tag
 (
     id         BIGINT      NOT NULL AUTO_INCREMENT,
     item_id    BIGINT      NOT NULL,
-    name       VARCHAR(20) NOT NULL,
+    -- 서버가 소문자로 정리해 저장한다. 기본 collation(대소문자·악센트 무시)이면 서버가 다르다고 본 태그를 DB가 중복으로 막아 500이 나므로 바이트 그대로 비교한다
+    name       VARCHAR(20) COLLATE utf8mb4_bin NOT NULL,
     position   INT         NOT NULL,
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,

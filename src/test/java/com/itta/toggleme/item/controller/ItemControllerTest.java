@@ -152,6 +152,25 @@ class ItemControllerTest {
     }
 
     @Test
+    void 대소문자만_다른_태그는_소문자_하나로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\"Jazz\", \"jazz\", \" #JAZZ \"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(1))
+                .andExpect(jsonPath("$.tags[0]").value("jazz"));
+    }
+
+    @Test
+    void 악센트만_다른_태그는_서로_다른_태그로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\"café\", \"cafe\"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(2));
+    }
+
+    @Test
     void 태그_없이도_기록할_수_있다() throws Exception {
         Member member = saveMemberWithRoom(false);
 
