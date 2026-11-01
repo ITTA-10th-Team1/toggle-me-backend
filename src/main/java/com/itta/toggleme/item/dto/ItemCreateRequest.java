@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.List;
 
 public record ItemCreateRequest(
         @NotBlank(message = "이미지 키는 필수입니다.")
@@ -21,6 +22,10 @@ public record ItemCreateRequest(
         String memo,
 
         @NotNull(message = "공개 여부는 필수입니다.")
-        ItemVisibility visibility
+        ItemVisibility visibility,
+
+        // AI 추천 태그 중 사용자가 고른 것. '#'는 붙여도 되고 빼도 된다. 비우거나 null이면 태그 없이 저장한다
+        @Size(max = 3, message = "태그는 3개까지 고를 수 있습니다.")
+        List<String> tags
 ) {
 }

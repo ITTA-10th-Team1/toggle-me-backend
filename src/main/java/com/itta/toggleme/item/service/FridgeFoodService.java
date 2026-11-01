@@ -43,7 +43,8 @@ public class FridgeFoodService {
                 findFridge().getId(),
                 request.recordedOn(),
                 request.memo(),
-                request.visibility()
+                request.visibility(),
+                List.of()
         ));
         return toResponse(item);
     }
