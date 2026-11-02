@@ -29,6 +29,7 @@ docker compose up -d   # 로컬 MySQL
 | `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` | 로컬 MySQL 접속 정보 |
 | `JWT_SECRET` | Base64 인코딩된 32바이트 이상 키 (`openssl rand -base64 32`) |
 | `KAKAO_APP_ID` | 카카오 개발자 콘솔의 앱 ID |
+| `GEMINI_API_KEY` | 이미지 분석용 Google AI Studio API 키. 테스트만 돌릴 때는 아무 값이나 넣어도 된다 |
 | `S3_BUCKET`, `AWS_REGION` | 이미지 버킷과 리전. 기본값은 개발 버킷 `toggleme-dev-images`, `ap-northeast-2` |
 
 S3 자격 증명은 `.env`가 아니라 `~/.aws/credentials`(개발용 IAM 사용자 키)에 둔다. 운영 서버는 EC2 IAM 역할을 쓴다.
