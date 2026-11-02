@@ -60,7 +60,14 @@ public class ImageAnalysisWorker {
         }
         String imageKey = analysis.getImageKey();
         try {
-            analysis.complete(sendsBytes(imageKey) ? analyzeBytes(imageKey) : analyzeUrl(imageKey));
+            ImageAnalysisResult result = sendsBytes(imageKey) ? analyzeBytes(imageKey) : analyzeUrl(imageKey);
+            // 모델이 빈 응답을 주면 결과 없는 COMPLETED가 되지 않게 실패로 둔다. 앱은 태그 없이 기록을 이어간다
+            if (result == null) {
+                log.warn("Image analysis {} failed: empty result", analysisId);
+                analysis.fail();
+            } else {
+                analysis.complete(result);
+            }
         } catch (RuntimeException | MalformedURLException e) {
             log.warn("Image analysis {} failed: {}", analysisId, e.getClass().getSimpleName());
             analysis.fail();

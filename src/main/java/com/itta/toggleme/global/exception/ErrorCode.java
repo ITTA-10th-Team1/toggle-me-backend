@@ -49,6 +49,7 @@ public enum ErrorCode {
     IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
     IMAGE_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "이미지 분석을 찾을 수 없습니다."),
     IMAGE_ANALYSIS_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "분석 요청이 많습니다. 잠시 후 다시 시도해 주세요."),
+    IMAGE_ANALYSIS_TOO_MANY(HttpStatus.TOO_MANY_REQUESTS, "진행 중인 분석이 많습니다. 잠시 후 다시 시도해 주세요."),
 
     // item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),

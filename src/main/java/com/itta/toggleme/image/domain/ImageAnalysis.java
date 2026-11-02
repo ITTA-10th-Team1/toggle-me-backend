@@ -65,6 +65,11 @@ public class ImageAnalysis extends BaseTimeEntity {
         this.status = ImageAnalysisStatus.FAILED;
     }
 
+    // 이 시각 이후에 만든 PENDING만 아직 진행 중이다
+    public static Instant pendingSince(Instant now) {
+        return now.minus(PENDING_TIMEOUT);
+    }
+
     // 서버 재시작이나 대기열 거절로 처리되지 못한 요청도 60초가 지나면 실패로 보인다
     public ImageAnalysisStatus currentStatus(Instant now) {
         if (status == ImageAnalysisStatus.PENDING && getCreatedAt().plus(PENDING_TIMEOUT).isBefore(now)) {

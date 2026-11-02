@@ -1,12 +1,16 @@
 package com.itta.toggleme.image.service;
 
 import com.itta.toggleme.image.domain.ImageAnalysis;
+import com.itta.toggleme.image.domain.ImageAnalysisStatus;
 import com.itta.toggleme.image.dto.ImageAnalysisResponse;
 import com.itta.toggleme.image.exception.ImageAnalysisBusyException;
 import com.itta.toggleme.image.exception.ImageAnalysisNotFoundException;
+import com.itta.toggleme.image.exception.ImageAnalysisTooManyException;
 import com.itta.toggleme.image.exception.ImageInvalidException;
 import com.itta.toggleme.image.repository.ImageAnalysisRepository;
 import com.itta.toggleme.member.repository.MemberRepository;
+import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskRejectedException;
@@ -22,6 +26,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Transactional(readOnly = true)
 public class ImageAnalysisService {
 
+    // 기록 화면은 사진을 한 장씩 올려서 정상 사용에서는 닿지 않는다
+    private static final int MAX_PENDING_PER_MEMBER = 3;
+
     private final ImageService imageService;
     private final ImageAnalysisWorker imageAnalysisWorker;
     private final ImageAnalysisRepository imageAnalysisRepository;
@@ -35,6 +42,18 @@ public class ImageAnalysisService {
     public ImageAnalysisResponse requestAnalysis(Long memberId, String imageKey) {
         if (!imageService.isUploadedBy(memberId, imageKey)) {
             throw new ImageInvalidException();
+        }
+        Instant pendingSince = ImageAnalysis.pendingSince(Instant.now());
+        // 더블탭·재시도로 같은 사진을 다시 요청하면 진행 중이거나 끝난 분석을 그대로 돌려준다. Gemini를 다시 부르지 않는다
+        List<ImageAnalysis> reusable = imageAnalysisRepository.findReusable(memberId, imageKey, pendingSince);
+        if (!reusable.isEmpty()) {
+            return ImageAnalysisResponse.from(reusable.getFirst());
+        }
+        // 대기열은 모든 회원이 함께 쓰므로 한 회원이 독점하지 못하게 한다.
+        // ponytail: 확인과 저장 사이에 동시 요청이 들어오면 한두 건 넘을 수 있다. 엄격히 막으려면 회원 행을 잠근다
+        if (imageAnalysisRepository.countByMemberIdAndStatusAndCreatedAtAfter(
+                memberId, ImageAnalysisStatus.PENDING, pendingSince) >= MAX_PENDING_PER_MEMBER) {
+            throw new ImageAnalysisTooManyException();
         }
         ThreadPoolTaskExecutor executor = ImageAnalysisWorker.sendsBytes(imageKey)
                 ? inlineImageAnalysisExecutor
