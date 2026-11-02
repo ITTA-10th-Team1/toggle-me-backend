@@ -2,6 +2,8 @@ package com.itta.toggleme.room.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * 가구 배치. 프론트 GLB 장면 좌표(오른손 좌표계, +Y가 위쪽, 바닥은 X·Z)를 그대로 저장한다.
@@ -21,6 +23,13 @@ public record Placement(
         @Column(name = "scale_y") Double scaleY,
         @Column(name = "scale_z") Double scaleZ
 ) {
+
+    // 기준 데이터를 넣다가 값 하나만 빠져도 방 생성·조회에서 원인 모를 500이 나지 않게 10개 모두 있어야 쓴다
+    public boolean isComplete() {
+        return Stream.of(positionX, positionY, positionZ, rotationX, rotationY, rotationZ, rotationW,
+                        scaleX, scaleY, scaleZ)
+                .allMatch(Objects::nonNull);
+    }
 
     // 회전 없음, 크기 1
     public static Placement at(double x, double y, double z) {

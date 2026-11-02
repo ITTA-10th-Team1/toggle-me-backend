@@ -59,6 +59,6 @@ public class FurnitureType extends BaseTimeEntity {
     }
 
     public boolean hasConfiguredPlacement() {
-        return placement != null && renderOrder != null;
+        return placement != null && placement.isComplete() && renderOrder != null;
     }
 }
