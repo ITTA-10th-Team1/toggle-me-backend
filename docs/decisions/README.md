@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | [0001](0001-room-count-per-member.md) | 사용자당 방 개수 | 확정 | [product-scope.md](../product-scope.md), [persistence.md](../persistence.md) |
 | [0002](0002-onboarding-room-visibility.md) | 온보딩 방 공개 여부 전달 방식 | 확정 | [product-scope.md](../product-scope.md) |
+| [0003](0003-ai-tag-recommendation.md) | 아이템 기록 AI 추천 태그 | 확정 | [product-scope.md](../product-scope.md) |
 
 ## 작성 규칙
 
