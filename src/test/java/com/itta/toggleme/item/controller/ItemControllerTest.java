@@ -146,12 +146,33 @@ class ItemControllerTest {
     }
 
     @Test
-    void 냉장고가_없으면_냉장고_전용_오류_코드를_반환한다() throws Exception {
-        Member withoutFridge = saveMemberWithRoom(false);
+    void 업로드되지_않은_이미지나_이미_쓴_이미지는_기록할_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        String missingKey = imageKey(member);
+        given(imageService.isUploadedBy(member.getId(), missingKey)).willReturn(false);
+        create(member, missingKey, fridgeTypeId, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
 
-        create(withoutFridge, imageKey(withoutFridge), fridgeTypeId, null)
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FRIDGE_NOT_SELECTED"));
+        String usedKey = imageKey(member);
+        create(member, usedKey, fridgeTypeId, null).andExpect(status().isCreated());
+        create(member, usedKey, fridgeTypeId, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
+    }
+
+    @Test
+    void 메모가_200자를_넘으면_400을_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+
+        mockMvc.perform(post("/api/v1/items")
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"imageKey":"%s","furnitureTypeId":%d,"memo":"%s","visibility":"PUBLIC"}
+                                """.formatted(imageKey(member), fridgeTypeId, "가".repeat(201))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
     }
 
     @Test
@@ -220,7 +241,7 @@ class ItemControllerTest {
         entityManager.flush();
         entityManager.clear();
 
-        mockMvc.perform(delete("/api/v1/fridge/foods/{itemId}", itemId).header("Authorization", bearer(member)))
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
                 .andExpect(status().isNoContent());
         entityManager.flush();
         entityManager.clear();
@@ -332,6 +353,45 @@ class ItemControllerTest {
         update(member, itemId, "{\"memo\":\"\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memo").value(nullValue()));
+    }
+
+    @Test
+    void 내_아이템_한_건을_상세_조회한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(itemId))
+                .andExpect(jsonPath("$.furnitureTypeId").value(placedTypeIds.get(1)));
+    }
+
+    @Test
+    void 카테고리를_바꿔도_등록일은_유지된다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Item item = itemRepository.save(Item.record(member, furnitureTypeRepository.findById(placedTypeIds.get(1))
+                .orElseThrow(), TODAY.minusDays(5), imageKey(member), null, ItemVisibility.PUBLIC));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", item.getId())
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureTypeId\":%d,\"visibility\":\"PUBLIC\"}".formatted(placedTypeIds.get(2))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.furnitureTypeId").value(placedTypeIds.get(2)))
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.minusDays(5).toString()));
+    }
+
+    @Test
+    void 방에_없는_가구로는_카테고리를_바꿀_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureTypeId\":%d,\"visibility\":\"PUBLIC\"}".formatted(notPlacedTypeId)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ITEM_FURNITURE_NOT_SELECTED"));
     }
 
     @Test

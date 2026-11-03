@@ -65,7 +65,13 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getCalendar(memberId(jwt), furnitureTypeId, month));
     }
 
-    @Operation(summary = "기록 수정 (보낸 값만 바꿈, 메모는 빈 문자열이면 삭제)")
+    @Operation(summary = "기록 상세 조회 (본인 기록)")
+    @GetMapping("/{itemId}")
+    public ResponseEntity<ItemResponse> getDetail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long itemId) {
+        return ResponseEntity.ok(itemService.getDetail(memberId(jwt), itemId));
+    }
+
+    @Operation(summary = "기록 수정 (보낸 값만 바꿈, 메모는 빈 문자열이면 삭제, 가구 이동 가능, 등록 날짜는 유지)")
     @PatchMapping("/{itemId}")
     public ResponseEntity<ItemResponse> update(
             @AuthenticationPrincipal Jwt jwt,

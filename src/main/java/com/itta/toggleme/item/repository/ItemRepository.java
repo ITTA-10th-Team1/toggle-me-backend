@@ -24,8 +24,6 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
             LocalDate to
     );
 
-    Optional<Item> findByIdAndMemberIdAndFurnitureTypeId(Long id, Long memberId, Long furnitureTypeId);
-
     Optional<Item> findByIdAndMemberId(Long id, Long memberId);
 
     boolean existsByImageKey(String imageKey);

@@ -113,10 +113,7 @@ public class ItemService {
                 .orElseThrow(FurnitureTypeNotFoundException::new);
         ItemRecordHandler handler = handlers.get(furnitureType.getCode());
 
-        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(
-                memberId, RoomStatus.ACTIVE, furnitureType.getId())) {
-            throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
-        }
+        requireFurnitureSelected(memberId, furnitureType);
         if (handler != null) {
             handler.validate(memberId, furnitureType, request);
         }
@@ -165,11 +162,22 @@ public class ItemService {
                 .toList();
     }
 
-    // 메모와 공개 여부만 바꾼다. 가구·날짜·사진·태그는 바꾸지 않는다
+    public ItemResponse getDetail(Long memberId, Long itemId) {
+        return toResponses(List.of(findMyItem(memberId, itemId))).getFirst();
+    }
+
+    // 메모·공개 여부·카테고리를 바꾼다. 등록일·사진·태그는 바꾸지 않는다
     @Transactional
     public ItemResponse update(Long memberId, Long itemId, ItemUpdateRequest request) {
         Item item = findMyItem(memberId, itemId);
         item.update(request.memo(), request.visibility());
+        Long targetId = request.furnitureTypeId();
+        if (targetId != null && !targetId.equals(item.getFurnitureType().getId())) {
+            FurnitureType target = furnitureTypeRepository.findById(targetId)
+                    .orElseThrow(FurnitureTypeNotFoundException::new);
+            requireFurnitureSelected(memberId, target);
+            item.changeFurnitureType(target);
+        }
         return toResponses(List.of(item)).getFirst();
     }
 
@@ -191,6 +199,15 @@ public class ItemService {
                 }
             }
         });
+    }
+
+    // 방에 켜진 가구에만 기록하거나 옮길 수 있다
+    private void requireFurnitureSelected(Long memberId, FurnitureType furnitureType) {
+        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(
+                memberId, RoomStatus.ACTIVE, furnitureType.getId())) {
+            ItemRecordHandler handler = handlers.get(furnitureType.getCode());
+            throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
+        }
     }
 
     private Item findMyItem(Long memberId, Long itemId) {

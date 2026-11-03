@@ -58,8 +58,7 @@ public enum ErrorCode {
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
     ITEM_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
     ITEM_FURNITURE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 둔 가구에만 기록할 수 있습니다."),
-    ITEM_TAG_INVALID(HttpStatus.BAD_REQUEST, "태그는 1~20자로 입력해 주세요."),
-    FRIDGE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 냉장고를 둔 회원만 사용할 수 있습니다.");
+    ITEM_TAG_INVALID(HttpStatus.BAD_REQUEST, "태그는 1~20자로 입력해 주세요.");
 
     private final HttpStatus status;
     private final String message;
