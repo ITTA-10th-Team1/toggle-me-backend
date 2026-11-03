@@ -92,6 +92,18 @@ class FollowControllerTest {
     }
 
     @Test
+    void 고유_ID에_대문자가_섞여도_찾는다() throws Exception {
+        mockMvc.perform(put("/api/v1/members/" + other.getHandle().toUpperCase() + "/follow")
+                        .header("Authorization", bearer(me)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/members/" + other.getHandle().toUpperCase()).header("Authorization", bearer(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.handle").value(other.getHandle()))
+                .andExpect(jsonPath("$.following").value(true));
+    }
+
+    @Test
     void 자기_자신은_팔로우할_수_없다() throws Exception {
         mockMvc.perform(put(followPath(me)).header("Authorization", bearer(me)))
                 .andExpect(status().isBadRequest())
