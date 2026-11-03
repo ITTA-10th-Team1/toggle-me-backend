@@ -189,9 +189,7 @@ public class RoomService {
         return RoomFurniture.place(
                 floor,
                 variant,
-                type.getPositionX(),
-                type.getPositionY(),
-                type.getRotation(),
+                type.getPlacement(),
                 type.getRenderOrder()
         );
     }

@@ -16,6 +16,7 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
 import com.itta.toggleme.room.domain.RoomVisibility;
@@ -23,7 +24,6 @@ import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -261,16 +261,16 @@ class FridgeFoodControllerTest {
 
     // 가구 4개를 고르는 방을 만든다. 냉장고가 있는 방은 첫 가구를 냉장고로 바꾼다
     private void saveCatalog() {
-        FurnitureType fridge = furnitureTypeRepository.findByCode("FRIDGE")
-                .orElseGet(() -> furnitureTypeRepository.save(FurnitureType.create("FRIDGE", "냉장고", 99)));
-        fridge.configurePlacement(BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.ZERO, 99);
+        FurnitureType fridge = furnitureTypeRepository.findByCode("fridge")
+                .orElseGet(() -> furnitureTypeRepository.save(FurnitureType.create("fridge", "냉장고", 99)));
+        fridge.configurePlacement(Placement.at(10, 0, 0), 99);
         fridgeVariantId = furnitureVariantRepository.save(
                 FurnitureVariant.create(fridge, "기본 냉장고", UUID.randomUUID().toString(), 1, 1)).getId();
 
         otherVariantIds = new ArrayList<>();
         for (int i = 1; i <= 4; i++) {
             FurnitureType type = FurnitureType.create(UUID.randomUUID().toString(), "가구 " + i, i);
-            type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypeRepository.save(type);
             otherVariantIds.add(furnitureVariantRepository.save(
                     FurnitureVariant.create(type, "기본 " + i, UUID.randomUUID().toString(), 1, 1)).getId());

@@ -14,6 +14,7 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomFurniture;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
@@ -24,7 +25,6 @@ import com.itta.toggleme.room.repository.RoomFloorRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -166,7 +166,7 @@ class RoomTagIntegrationTest {
         variantIds = new ArrayList<>();
         for (int i = 1; i <= 4; i++) {
             FurnitureType type = FurnitureType.create(UUID.randomUUID().toString(), "가구 " + i, i);
-            type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypeRepository.save(type);
             typeIds.add(type.getId());
             variantIds.add(furnitureVariantRepository.save(

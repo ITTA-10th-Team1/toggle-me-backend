@@ -34,6 +34,10 @@ public class FurnitureVariant extends BaseTimeEntity {
     @Column(name = "asset_object_key", nullable = false, length = 500)
     private String assetObjectKey;
 
+    // GLB 안에서 이 디자인을 찾는 그룹 노드 이름. 기준 데이터로 넣는다
+    @Column(name = "object_node_name", length = 50)
+    private String objectNodeName;
+
     @Column(name = "width_units", nullable = false)
     private int widthUnits;
 

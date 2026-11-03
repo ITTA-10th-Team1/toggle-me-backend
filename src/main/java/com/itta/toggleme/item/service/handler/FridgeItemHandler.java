@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FridgeItemHandler implements ItemRecordHandler {
 
-    public static final String FRIDGE_CODE = "FRIDGE";
+    public static final String FRIDGE_CODE = "fridge";
     private static final int DAILY_LIMIT = 10;
 
     private final ItemRepository itemRepository;

@@ -9,12 +9,12 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
 import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -147,7 +147,7 @@ class OnboardingConcurrencyIntegrationTest {
 
         for (int i = 0; i < 4; i++) {
             FurnitureType type = FurnitureType.create("TEST_" + suffix + "_" + i, "테스트 가구 " + i, i);
-            type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypeIds.add(furnitureTypeRepository.save(type).getId());
             furnitureVariantIds.add(furnitureVariantRepository.save(
                     FurnitureVariant.create(
