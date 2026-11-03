@@ -34,6 +34,9 @@ public enum ErrorCode {
     MEMBER_PROFILE_REQUIRED(HttpStatus.CONFLICT, "프로필 설정을 먼저 완료해야 합니다."),
     MEMBER_ONBOARDING_ALREADY_COMPLETED(HttpStatus.CONFLICT, "온보딩이 완료된 회원은 프로필을 변경할 수 없습니다."),
 
+    // follow
+    FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 팔로우할 수 없습니다."),
+
     // room
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."),
     ROOM_STYLE_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "기본 방 스타일이 등록되어 있지 않습니다."),
