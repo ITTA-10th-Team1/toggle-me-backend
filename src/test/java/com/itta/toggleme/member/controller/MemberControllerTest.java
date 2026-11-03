@@ -253,6 +253,19 @@ class MemberControllerTest {
     }
 
     @Test
+    void 가구_2개로_온보딩할_수_있다() throws Exception {
+        List<Long> selectedIds = saveFurnitureVariants(2).stream().map(FurnitureVariant::getId).toList();
+
+        mockMvc.perform(post("/api/v1/members/onboarding")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody(selectedIds)))
+                .andExpect(status().isOk());
+
+        assertThat(roomFurnitureRepository.findAll()).hasSize(2);
+    }
+
+    @Test
     void 온보딩_공개_설정이_없거나_null이면_400을_반환한다() throws Exception {
         mockMvc.perform(post("/api/v1/members/onboarding")
                         .header("Authorization", bearer())
@@ -282,8 +295,8 @@ class MemberControllerTest {
     }
 
     @Test
-    void 가구를_3개만_선택하면_온보딩할_수_없다() throws Exception {
-        List<Long> selectedIds = saveFurnitureVariants(3).stream().map(FurnitureVariant::getId).toList();
+    void 가구를_1개만_선택하면_온보딩할_수_없다() throws Exception {
+        List<Long> selectedIds = saveFurnitureVariants(1).stream().map(FurnitureVariant::getId).toList();
 
         mockMvc.perform(post("/api/v1/members/onboarding")
                         .header("Authorization", bearer())
