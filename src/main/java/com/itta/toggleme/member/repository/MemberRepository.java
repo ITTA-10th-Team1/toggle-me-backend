@@ -1,6 +1,7 @@
 package com.itta.toggleme.member.repository;
 
 import com.itta.toggleme.member.domain.Member;
+import com.itta.toggleme.member.domain.MemberStatus;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,4 +17,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByIdForUpdate(@Param("id") Long id);
 
     boolean existsByHandle(String handle);
+
+    Optional<Member> findByHandleAndStatus(String handle, MemberStatus status);
 }
