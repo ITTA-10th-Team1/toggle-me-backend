@@ -23,8 +23,8 @@ public class MemberSearchController {
     @GetMapping
     public ResponseEntity<List<MemberSearchResponse>> search(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam String handle
+            @RequestParam String keyword
     ) {
-        return ResponseEntity.ok(memberSearchService.searchByHandle(Long.valueOf(jwt.getSubject()), handle));
+        return ResponseEntity.ok(memberSearchService.search(Long.valueOf(jwt.getSubject()), keyword));
     }
 }

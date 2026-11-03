@@ -58,7 +58,7 @@ class MemberSearchControllerTest {
         saveMember("x" + prefix, RoomVisibility.SOCIAL_ON);
         mockMvc.perform(put("/api/v1/members/" + followed.getHandle() + "/follow").header("Authorization", bearer(me)));
 
-        mockMvc.perform(get("/api/v1/members/search").param("handle", " " + prefix.toUpperCase() + " ")
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", " " + prefix.toUpperCase() + " ")
                         .header("Authorization", bearer(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -73,7 +73,7 @@ class MemberSearchControllerTest {
         saveMember(prefix + "_a", RoomVisibility.SOCIAL_ON);
         saveMember(prefix + "xa", RoomVisibility.SOCIAL_ON);
 
-        mockMvc.perform(get("/api/v1/members/search").param("handle", prefix + "_").header("Authorization", bearer(me)))
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", prefix + "_").header("Authorization", bearer(me)))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].handle").value(prefix + "_a"));
     }
@@ -87,23 +87,51 @@ class MemberSearchControllerTest {
         jdbcTemplate.update("UPDATE member SET status = 'WITHDRAWN' WHERE id = ?", withdrawn.getId());
         Member offMe = saveMember(prefix + "me", RoomVisibility.SOCIAL_OFF);
 
-        mockMvc.perform(get("/api/v1/members/search").param("handle", prefix).header("Authorization", bearer(offMe)))
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", prefix).header("Authorization", bearer(offMe)))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].handle").value(prefix + "me"));
     }
 
     @Test
-    void 두_글자_미만이거나_쓸_수_없는_글자면_빈_목록이다() throws Exception {
-        mockMvc.perform(get("/api/v1/members/search").param("handle", "s").header("Authorization", bearer(me)))
+    void 닉네임_앞부분으로도_찾는다() throws Exception {
+        saveMember("zz" + prefix, "지인" + prefix, RoomVisibility.SOCIAL_ON);
+        saveMember("zy" + prefix, "Jiin" + prefix, RoomVisibility.SOCIAL_ON);
+
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "지인" + prefix).header("Authorization", bearer(me)))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].handle").value("zz" + prefix))
+                .andExpect(jsonPath("$[0].nickname").value("지인" + prefix));
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "JIIN" + prefix).header("Authorization", bearer(me)))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].handle").value("zy" + prefix));
+    }
+
+    @Test
+    void 닉네임의_퍼센트는_글자_그대로_찾는다() throws Exception {
+        saveMember("zz" + prefix, prefix + "%a", RoomVisibility.SOCIAL_ON);
+        saveMember("zy" + prefix, prefix + "xa", RoomVisibility.SOCIAL_ON);
+
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", prefix + "%").header("Authorization", bearer(me)))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nickname").value(prefix + "%a"));
+    }
+
+    @Test
+    void 두_글자_미만이거나_30자를_넘으면_빈_목록이다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "s").header("Authorization", bearer(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
-        mockMvc.perform(get("/api/v1/members/search").param("handle", "%%").header("Authorization", bearer(me)))
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "a".repeat(31)).header("Authorization", bearer(me)))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     private Member saveMember(String handle, RoomVisibility visibility) {
+        return saveMember(handle, "토글러", visibility);
+    }
+
+    private Member saveMember(String handle, String nickname, RoomVisibility visibility) {
         Member member = memberRepository.save(Member.create("user_" + UUID.randomUUID().toString().substring(0, 8), "토글러"));
-        member.updateProfile(handle, "토글러");
+        member.updateProfile(handle, nickname);
         roomRepository.save(Room.create(member, "방", visibility));
         return member;
     }

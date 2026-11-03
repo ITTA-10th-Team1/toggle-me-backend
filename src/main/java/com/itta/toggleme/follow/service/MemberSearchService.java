@@ -15,18 +15,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberSearchService {
 
     private static final int MIN_LENGTH = 2;
+    // 고유 ID(20자)·닉네임(30자) 중 긴 쪽
+    private static final int MAX_LENGTH = 30;
     private static final int MAX_RESULTS = 20;
 
     private final MemberSearchRepository memberSearchRepository;
 
-    // 고유 ID 규칙(영소문자·숫자·_, 20자 이하) 밖의 입력은 찾을 회원이 없으므로 빈 목록
-    public List<MemberSearchResponse> searchByHandle(Long memberId, String keyword) {
-        String handle = keyword.strip().toLowerCase(Locale.ROOT);
-        if (handle.length() < MIN_LENGTH || !handle.matches("[a-z0-9_]{1,20}")) {
+    // 고유 ID 또는 닉네임이 입력값으로 시작하는 회원. 고유 ID는 소문자로 저장되고, 닉네임 비교는 DB가 대소문자를 무시한다
+    public List<MemberSearchResponse> search(Long memberId, String keyword) {
+        String text = keyword.strip().toLowerCase(Locale.ROOT);
+        if (text.length() < MIN_LENGTH || text.length() > MAX_LENGTH) {
             return List.of();
         }
-        // '_'는 LIKE에서 아무 글자 한 개라 글자 그대로 찾도록 막는다. '!'는 고유 ID에 못 쓰는 글자라 이스케이프로 쓴다
-        String prefix = handle.replace("_", "!_") + "%";
-        return memberSearchRepository.searchByHandlePrefix(memberId, prefix, Limit.of(MAX_RESULTS));
+        // %, _ 는 LIKE에서 와일드카드라 '!'를 붙여 글자 그대로 찾는다
+        String prefix = text.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        return memberSearchRepository.searchByPrefix(memberId, prefix, Limit.of(MAX_RESULTS));
     }
 }
