@@ -13,6 +13,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.itta.toggleme.global.security.JwtTokenProvider;
+import com.itta.toggleme.item.domain.Item;
+import com.itta.toggleme.item.domain.ItemTag;
+import com.itta.toggleme.item.domain.ItemVisibility;
+import com.itta.toggleme.item.repository.ItemRepository;
 import com.itta.toggleme.item.repository.ItemTagRepository;
 import jakarta.persistence.EntityManager;
 import com.itta.toggleme.image.service.ImageService;
@@ -74,6 +78,9 @@ class ItemControllerTest {
     private RoomService roomService;
 
     @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
     private ItemTagRepository itemTagRepository;
 
     @Autowired
@@ -129,17 +136,20 @@ class ItemControllerTest {
     }
 
     @Test
-    void 냉장고는_통합_API에서도_냉장고_규칙을_따른다() throws Exception {
-        Member withFridge = saveMemberWithRoom(true);
-        create(withFridge, imageKey(withFridge), fridgeTypeId, TODAY.plusDays(1))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ITEM_RECORDED_DATE_INVALID"));
-        create(withFridge, imageKey(withFridge), fridgeTypeId, TODAY.minusDays(2))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.recordedOn").value(TODAY.minusDays(2).toString()));
+    void 등록일은_오늘로_자동_기록하고_하루_개수에_제한이_없다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        for (int i = 0; i < 11; i++) {
+            create(member, imageKey(member), fridgeTypeId, TODAY.minusDays(2))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+        }
+    }
 
+    @Test
+    void 냉장고가_없으면_냉장고_전용_오류_코드를_반환한다() throws Exception {
         Member withoutFridge = saveMemberWithRoom(false);
-        create(withoutFridge, imageKey(withoutFridge), fridgeTypeId, TODAY)
+
+        create(withoutFridge, imageKey(withoutFridge), fridgeTypeId, null)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FRIDGE_NOT_SELECTED"));
     }
@@ -234,16 +244,18 @@ class ItemControllerTest {
     void 날짜별로_내_아이템만_태그와_함께_조회한다() throws Exception {
         Member me = saveMemberWithRoom(true);
         Member other = saveMemberWithRoom(true);
-        Long typeId = fridgeTypeId;
-        create(me, imageKey(me), typeId, TODAY.minusDays(1), "[\"a\", \"b\"]").andExpect(status().isCreated());
-        create(me, imageKey(me), typeId, TODAY.minusDays(1), "[]").andExpect(status().isCreated());
-        create(me, imageKey(me), typeId, TODAY, "[]").andExpect(status().isCreated());
-        create(other, imageKey(other), typeId, TODAY.minusDays(1), "[]").andExpect(status().isCreated());
+        LocalDate yesterday = TODAY.minusDays(1);
+        Item first = saveItem(me, yesterday);
+        saveItem(me, yesterday);
+        saveItem(me, TODAY);
+        saveItem(other, yesterday);
+        itemTagRepository.save(ItemTag.of(first, "a", 0));
+        itemTagRepository.save(ItemTag.of(first, "b", 1));
 
         mockMvc.perform(get("/api/v1/items")
                         .header("Authorization", bearer(me))
-                        .param("furnitureTypeId", typeId.toString())
-                        .param("date", TODAY.minusDays(1).toString()))
+                        .param("furnitureTypeId", fridgeTypeId.toString())
+                        .param("date", yesterday.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].tags.length()").value(2))
@@ -266,21 +278,19 @@ class ItemControllerTest {
     @Test
     void 달력은_사진이_있는_날짜만_개수와_첫_사진으로_내려준다() throws Exception {
         Member member = saveMemberWithRoom(true);
-        Long typeId = fridgeTypeId;
         LocalDate day = TODAY.withDayOfMonth(1);
-        String firstKey = imageKey(member);
-        create(member, firstKey, typeId, day, "[]").andExpect(status().isCreated());
-        create(member, imageKey(member), typeId, day, "[]").andExpect(status().isCreated());
+        Item first = saveItem(member, day);
+        saveItem(member, day);
 
         mockMvc.perform(get("/api/v1/items/calendar")
                         .header("Authorization", bearer(member))
-                        .param("furnitureTypeId", typeId.toString())
+                        .param("furnitureTypeId", fridgeTypeId.toString())
                         .param("month", YearMonth.from(day).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].date").value(day.toString()))
                 .andExpect(jsonPath("$[0].count").value(2))
-                .andExpect(jsonPath("$[0].thumbnailUrl").value("https://view/" + firstKey));
+                .andExpect(jsonPath("$[0].thumbnailUrl").value("https://view/" + first.getImageKey()));
     }
 
     @Test
@@ -356,6 +366,13 @@ class ItemControllerTest {
                 .header("Authorization", bearer(member))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
+    }
+
+    // 등록 API는 항상 오늘로 기록하므로 다른 날짜의 아이템은 직접 저장한다
+    private Item saveItem(Member member, LocalDate recordedOn) {
+        FurnitureType fridge = furnitureTypeRepository.findById(fridgeTypeId).orElseThrow();
+        return itemRepository.save(Item.record(member, fridge, recordedOn, imageKey(member), null,
+                ItemVisibility.PUBLIC));
     }
 
     private Long createAndGetId(Member member, Long typeId) throws Exception {

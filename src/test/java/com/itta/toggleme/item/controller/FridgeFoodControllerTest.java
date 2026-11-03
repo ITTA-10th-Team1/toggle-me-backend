@@ -98,16 +98,13 @@ class FridgeFoodControllerTest {
     }
 
     @Test
-    void 지난_날짜로도_등록할_수_있다() throws Exception {
+    void 앱이_보낸_날짜는_무시하고_오늘로_기록한다() throws Exception {
         create(owner, imageKey(owner), TODAY.minusDays(3), null)
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    void 미래_날짜는_등록할_수_없다() throws Exception {
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
         create(owner, imageKey(owner), TODAY.plusDays(1), null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ITEM_RECORDED_DATE_INVALID"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
     }
 
     @Test
@@ -120,16 +117,10 @@ class FridgeFoodControllerTest {
     }
 
     @Test
-    void 하루_10장을_넘게_등록할_수_없다() throws Exception {
-        for (int i = 0; i < 10; i++) {
+    void 하루에_등록하는_개수에는_제한이_없다() throws Exception {
+        for (int i = 0; i < 11; i++) {
             create(owner, imageKey(owner), TODAY, null).andExpect(status().isCreated());
         }
-
-        create(owner, imageKey(owner), TODAY, null)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("ITEM_DAILY_LIMIT_EXCEEDED"));
-        create(owner, imageKey(owner), TODAY.minusDays(1), null)
-                .andExpect(status().isCreated());
     }
 
     @Test
@@ -161,13 +152,9 @@ class FridgeFoodControllerTest {
 
     @Test
     void 날짜별_목록과_달력을_조회한다() throws Exception {
-        LocalDate otherDay = TODAY.withDayOfMonth(1).equals(TODAY) ? TODAY : TODAY.minusDays(1);
         String firstKey = imageKey(owner);
         create(owner, firstKey, TODAY, "아침").andExpect(status().isCreated());
         create(owner, imageKey(owner), TODAY, "저녁").andExpect(status().isCreated());
-        if (!otherDay.equals(TODAY)) {
-            create(owner, imageKey(owner), otherDay, null).andExpect(status().isCreated());
-        }
 
         mockMvc.perform(get("/api/v1/fridge/foods").param("date", TODAY.toString())
                         .header("Authorization", bearer(owner)))

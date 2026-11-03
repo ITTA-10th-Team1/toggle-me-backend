@@ -11,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    long countByMemberIdAndFurnitureTypeIdAndRecordedOn(Long memberId, Long furnitureTypeId, LocalDate recordedOn);
-
     List<Item> findAllByMemberIdAndFurnitureTypeIdAndRecordedOnOrderById(
             Long memberId,
             Long furnitureTypeId,

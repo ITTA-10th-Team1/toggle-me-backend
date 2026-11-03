@@ -11,8 +11,7 @@ public record FridgeFoodCreateRequest(
         @Size(max = 500, message = "이미지 키가 너무 깁니다.")
         String imageKey,
 
-        // 앱 기기의 날짜를 그대로 받는다. 서버(UTC)에서 계산하면 한국 시간 0~9시 사진이 전날로 들어간다
-        @NotNull(message = "날짜는 필수입니다.")
+        // 이전 앱과의 호환용으로 받기만 하고 쓰지 않는다. 등록일은 서버가 오늘(Asia/Seoul)로 기록한다
         LocalDate recordedOn,
 
         @Size(max = 200, message = "메모는 200자 이하로 입력해 주세요.")

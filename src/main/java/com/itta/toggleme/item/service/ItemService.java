@@ -117,10 +117,9 @@ public class ItemService {
                 memberId, RoomStatus.ACTIVE, furnitureType.getId())) {
             throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
         }
-        LocalDate today = LocalDate.now(SERVICE_ZONE);
-        LocalDate recordedOn = handler == null
-                ? today
-                : handler.prepare(memberId, furnitureType, request, today);
+        if (handler != null) {
+            handler.validate(memberId, furnitureType, request);
+        }
         if (itemRepository.existsByImageKey(request.imageKey())
                 || !imageService.isUploadedBy(memberId, request.imageKey())) {
             throw new ItemImageInvalidException();
@@ -129,7 +128,7 @@ public class ItemService {
         Item item = itemRepository.save(Item.record(
                 member,
                 furnitureType,
-                recordedOn,
+                LocalDate.now(SERVICE_ZONE),
                 request.imageKey(),
                 request.memo(),
                 request.visibility()

@@ -4,7 +4,6 @@ import com.itta.toggleme.item.domain.ItemVisibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
 import java.util.List;
 
 public record ItemCreateRequest(
@@ -14,9 +13,6 @@ public record ItemCreateRequest(
 
         @NotNull(message = "가구 종류는 필수입니다.")
         Long furnitureTypeId,
-
-        // 앱 기기의 날짜. 비우면 오늘(Asia/Seoul)로 기록한다. 지난 날짜를 받을지는 가구별 핸들러가 정한다
-        LocalDate recordedOn,
 
         @Size(max = 200, message = "메모는 200자 이하로 입력해 주세요.")
         String memo,

@@ -41,7 +41,6 @@ public class FridgeFoodService {
         Item item = itemService.record(memberId, new ItemCreateRequest(
                 request.imageKey(),
                 findFridge().getId(),
-                request.recordedOn(),
                 request.memo(),
                 request.visibility(),
                 List.of()
