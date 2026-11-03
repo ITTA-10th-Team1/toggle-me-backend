@@ -107,8 +107,7 @@ public class ItemService {
     @Transactional
     public Item record(Long memberId, ItemCreateRequest request) {
         List<String> tagNames = normalizeTags(request.tags());
-        // 회원 행을 잠가 같은 회원의 동시 등록이 가구별 개수 제한을 넘지 않게 한다
-        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
         FurnitureType furnitureType = furnitureTypeRepository.findById(request.furnitureTypeId())
                 .orElseThrow(FurnitureTypeNotFoundException::new);
         ItemRecordHandler handler = handlers.get(furnitureType.getCode());
