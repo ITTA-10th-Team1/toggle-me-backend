@@ -74,13 +74,13 @@ class ImageControllerTest {
 
     @Test
     void 분석을_요청하면_202와_분석_ID를_반환한다() throws Exception {
-        given(imageAnalysisService.requestAnalysis(MEMBER_ID, "images/7/a.jpg"))
+        given(imageAnalysisService.requestAnalysis(MEMBER_ID, "images/7/a.jpg", 2L))
                 .willReturn(new ImageAnalysisResponse(1L, ImageAnalysisStatus.PENDING, null));
 
         mockMvc.perform(post("/api/v1/images/analysis")
                         .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(MEMBER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"imageKey\":\"images/7/a.jpg\"}"))
+                        .content("{\"imageKey\":\"images/7/a.jpg\",\"furnitureTypeId\":2}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.analysisId").value(1))
                 .andExpect(jsonPath("$.status").value("PENDING"));

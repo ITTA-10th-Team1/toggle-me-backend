@@ -51,7 +51,8 @@ public class ImageController {
     ) {
         return ResponseEntity.accepted().body(imageAnalysisService.requestAnalysis(
                 Long.valueOf(jwt.getSubject()),
-                request.imageKey()
+                request.imageKey(),
+                request.furnitureTypeId()
         ));
     }
 
