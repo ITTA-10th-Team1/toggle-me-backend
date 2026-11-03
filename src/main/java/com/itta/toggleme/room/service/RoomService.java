@@ -15,6 +15,7 @@ import com.itta.toggleme.room.dto.RoomFloorResponse;
 import com.itta.toggleme.room.dto.RoomFurnitureResponse;
 import com.itta.toggleme.room.dto.RoomFurnitureUpdateRequest;
 import com.itta.toggleme.room.dto.RoomResponse;
+import com.itta.toggleme.room.dto.SharedRoomResponse;
 import com.itta.toggleme.room.exception.FurniturePlacementNotConfiguredException;
 import com.itta.toggleme.room.exception.FurnitureVariantNotFoundException;
 import com.itta.toggleme.room.exception.InvalidFurnitureSelectionException;
@@ -58,6 +59,7 @@ public class RoomService {
     private final RoomStyleRepository roomStyleRepository;
     private final FurnitureTypeRepository furnitureTypeRepository;
     private final FurnitureVariantRepository furnitureVariantRepository;
+    private final RoomTagService roomTagService;
 
     @Transactional
     public Long createDefaultRoom(
@@ -86,6 +88,27 @@ public class RoomService {
         return roomFloorRepository.findAllByRoomIdOrderByFloorNumber(room.getId()).stream()
                 .map(RoomFloorResponse::from)
                 .toList();
+    }
+
+    // 다른 회원이 보는 방. 공개 여부는 부르는 쪽(VisibleMemberService)이 먼저 확인한다
+    public SharedRoomResponse getSharedRoom(Long ownerId) {
+        Room room = roomRepository.findFirstByOwnerIdOrderById(ownerId)
+                .filter(found -> found.getStatus() == RoomStatus.ACTIVE)
+                .orElseThrow(RoomNotFoundException::new);
+        // MVP는 1층뿐이다
+        RoomFloor floor = roomFloorRepository.findAllByRoomIdOrderByFloorNumber(room.getId()).getFirst();
+        List<RoomFurnitureResponse> furniture = furnitureResponses(
+                findActiveFurnitureTypes(), roomFurnitureRepository.findAllByFloorId(floor.getId())).stream()
+                .filter(response -> !response.hidden())
+                .toList();
+        return new SharedRoomResponse(
+                room.getId(),
+                room.getName(),
+                floor.getWallStyle().getId(),
+                floor.getFloorStyle().getId(),
+                furniture,
+                roomTagService.getMyRoomTags(ownerId, room.getId())
+        );
     }
 
     public List<RoomFurnitureResponse> getFurniture(Long memberId, Long roomId, Long floorId) {
