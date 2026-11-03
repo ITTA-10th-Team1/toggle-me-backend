@@ -107,6 +107,15 @@ class MemberSearchControllerTest {
     }
 
     @Test
+    void 한_글자로도_닉네임을_찾는다() throws Exception {
+        // 다른 테스트 데이터와 겹치지 않도록 잘 안 쓰는 한 글자 닉네임
+        saveMember("zz" + prefix, "뷁", RoomVisibility.SOCIAL_ON);
+
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "뷁").header("Authorization", bearer(me)))
+                .andExpect(jsonPath("$[?(@.handle == 'zz" + prefix + "')]").exists());
+    }
+
+    @Test
     void 닉네임의_퍼센트는_글자_그대로_찾는다() throws Exception {
         saveMember("zz" + prefix, prefix + "%a", RoomVisibility.SOCIAL_ON);
         saveMember("zy" + prefix, prefix + "xa", RoomVisibility.SOCIAL_ON);
@@ -117,8 +126,8 @@ class MemberSearchControllerTest {
     }
 
     @Test
-    void 두_글자_미만이거나_30자를_넘으면_빈_목록이다() throws Exception {
-        mockMvc.perform(get("/api/v1/members/search").param("keyword", "s").header("Authorization", bearer(me)))
+    void 비었거나_30자를_넘으면_빈_목록이다() throws Exception {
+        mockMvc.perform(get("/api/v1/members/search").param("keyword", "  ").header("Authorization", bearer(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
         mockMvc.perform(get("/api/v1/members/search").param("keyword", "a".repeat(31)).header("Authorization", bearer(me)))
