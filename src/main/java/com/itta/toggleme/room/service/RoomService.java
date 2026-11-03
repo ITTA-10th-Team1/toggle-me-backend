@@ -47,7 +47,8 @@ public class RoomService {
     private static final String DEFAULT_ROOM_NAME = "나의 방";
     private static final String DEFAULT_FLOOR_NAME = "1층";
     private static final int FIRST_FLOOR_NUMBER = 1;
-    private static final int MIN_FURNITURE_COUNT = 4;
+    // MVP는 거울·냉장고 2종만 구현해 2개로 낮췄다. 가구 5종이 되면 기획대로 4로 되돌린다
+    private static final int MIN_FURNITURE_COUNT = 2;
     private static final int MAX_FURNITURE_COUNT = 5;
     private static final int MAX_HIDDEN_FURNITURE_COUNT = 1;
 
