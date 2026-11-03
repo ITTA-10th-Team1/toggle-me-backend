@@ -28,6 +28,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
     Optional<Item> findByIdAndMemberIdAndFurnitureTypeId(Long id, Long memberId, Long furnitureTypeId);
 
+    Optional<Item> findByIdAndMemberId(Long id, Long memberId);
+
     boolean existsByImageKey(String imageKey);
 
     // 가구별 기록 목록, 최근에 올린 순. before가 있으면 그 id보다 앞선 기록부터

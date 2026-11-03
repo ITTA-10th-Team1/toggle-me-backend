@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,6 +28,7 @@ import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -224,6 +227,107 @@ class ItemControllerTest {
                         .content("{\"imageKey\":\"%s\"}".formatted(imageKey(member))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    void 날짜별로_내_아이템만_태그와_함께_조회한다() throws Exception {
+        Member me = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        Long typeId = fridgeTypeId;
+        create(me, imageKey(me), typeId, TODAY.minusDays(1), "[\"a\", \"b\"]").andExpect(status().isCreated());
+        create(me, imageKey(me), typeId, TODAY.minusDays(1), "[]").andExpect(status().isCreated());
+        create(me, imageKey(me), typeId, TODAY, "[]").andExpect(status().isCreated());
+        create(other, imageKey(other), typeId, TODAY.minusDays(1), "[]").andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(me))
+                        .param("furnitureTypeId", typeId.toString())
+                        .param("date", TODAY.minusDays(1).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].tags.length()").value(2))
+                .andExpect(jsonPath("$[0].tags[0]").value("a"))
+                .andExpect(jsonPath("$[1].tags.length()").value(0));
+    }
+
+    @Test
+    void 없는_가구_종류로_조회하면_404를_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(member))
+                        .param("furnitureTypeId", Long.MAX_VALUE + "")
+                        .param("date", TODAY.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FURNITURE_TYPE_NOT_FOUND"));
+    }
+
+    @Test
+    void 달력은_사진이_있는_날짜만_개수와_첫_사진으로_내려준다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Long typeId = fridgeTypeId;
+        LocalDate day = TODAY.withDayOfMonth(1);
+        String firstKey = imageKey(member);
+        create(member, firstKey, typeId, day, "[]").andExpect(status().isCreated());
+        create(member, imageKey(member), typeId, day, "[]").andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/items/calendar")
+                        .header("Authorization", bearer(member))
+                        .param("furnitureTypeId", typeId.toString())
+                        .param("month", YearMonth.from(day).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].date").value(day.toString()))
+                .andExpect(jsonPath("$[0].count").value(2))
+                .andExpect(jsonPath("$[0].thumbnailUrl").value("https://view/" + firstKey));
+    }
+
+    @Test
+    void 메모와_공개_여부를_수정한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memo\":\"오늘 착장\",\"visibility\":\"PRIVATE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("오늘 착장"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+    }
+
+    @Test
+    void 남의_아이템은_수정하거나_삭제할_수_없다() throws Exception {
+        Member owner = saveMemberWithRoom(false);
+        Member other = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(owner, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(other))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memo\":null,\"visibility\":\"PRIVATE\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_FOUND"));
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(other)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 아이템을_삭제하면_사진도_지운다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNotFound());
+    }
+
+    private Long createAndGetId(Member member, Long typeId) throws Exception {
+        String body = create(member, imageKey(member), typeId, TODAY, "[]")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return Long.valueOf(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
     }
 
     private ResultActions create(Member member, String key, Long furnitureTypeId, LocalDate recordedOn)
