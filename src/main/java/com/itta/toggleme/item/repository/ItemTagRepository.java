@@ -2,6 +2,7 @@ package com.itta.toggleme.item.repository;
 
 import com.itta.toggleme.item.domain.ItemTag;
 import com.itta.toggleme.item.domain.ItemVisibility;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 public interface ItemTagRepository extends JpaRepository<ItemTag, Long> {
 
     List<ItemTag> findAllByItemIdOrderByPosition(Long itemId);
+
+    List<ItemTag> findAllByItemIdInOrderByPosition(Collection<Long> itemIds);
 
     // 방 주인의 아이템 중 공개 상태이고, 방에 켜져 있는 가구에 기록한 것의 태그만 가져온다
     @Query("""

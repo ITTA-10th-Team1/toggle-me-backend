@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class ItemService {
     // 앱 사용자 기준 날짜. 해외 사용자를 받게 되면 기기 시간대를 함께 받는다
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private static final int MAX_TAG_LENGTH = 20;
+    private static final int ROOM_ITEMS_PAGE_SIZE = 20;
 
     private final ItemRepository itemRepository;
     private final ItemTagRepository itemTagRepository;
@@ -64,6 +66,23 @@ public class ItemService {
         // 같은 가구 code의 핸들러가 둘이면 기동할 때 실패한다
         this.handlers = handlers.stream()
                 .collect(Collectors.toMap(ItemRecordHandler::furnitureCode, Function.identity()));
+    }
+
+    // 방에서 가구를 눌렀을 때 보는 기록. 꺼진 가구는 404. 주인이 아니면 공개 기록만
+    public List<ItemResponse> getRoomItems(Long ownerId, boolean includePrivate, Long furnitureTypeId, Long before) {
+        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(ownerId, RoomStatus.ACTIVE, furnitureTypeId)) {
+            throw new FurnitureTypeNotFoundException();
+        }
+        List<Item> items = itemRepository.findRoomItems(
+                ownerId, furnitureTypeId, includePrivate, before, Limit.of(ROOM_ITEMS_PAGE_SIZE));
+        Map<Long, List<String>> tagsByItem = itemTagRepository
+                .findAllByItemIdInOrderByPosition(items.stream().map(Item::getId).toList()).stream()
+                .collect(Collectors.groupingBy(tag -> tag.getItem().getId(),
+                        Collectors.mapping(ItemTag::getName, Collectors.toList())));
+        return items.stream()
+                .map(item -> ItemResponse.from(item, imageService.createViewUrl(item.getImageKey()),
+                        tagsByItem.getOrDefault(item.getId(), List.of())))
+                .toList();
     }
 
     @Transactional
