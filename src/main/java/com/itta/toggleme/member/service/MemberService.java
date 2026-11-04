@@ -36,7 +36,7 @@ public class MemberService {
     private static final int HANDLE_MAX_LENGTH = 20;
     private static final Set<String> RESERVED_HANDLES = Set.of(
             "admin", "administrator", "root", "system", "support", "official", "toggleme", "toggle_me",
-            "null", "undefined"
+            "null", "undefined", "search"
     );
 
     private final MemberRepository memberRepository;

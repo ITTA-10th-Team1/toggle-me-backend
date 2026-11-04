@@ -1,0 +1,87 @@
+package com.itta.toggleme.image.domain;
+
+import com.itta.toggleme.global.entity.BaseTimeEntity;
+import com.itta.toggleme.member.domain.Member;
+import com.itta.toggleme.room.domain.FurnitureType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import java.time.Duration;
+import java.time.Instant;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+@Getter
+@Entity
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class ImageAnalysis extends BaseTimeEntity {
+
+    // 앱은 이 시간까지만 결과를 기다리고, 넘으면 태그 없이 기록을 이어간다
+    private static final Duration PENDING_TIMEOUT = Duration.ofSeconds(60);
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
+
+    @Column(name = "image_key", nullable = false, length = 500)
+    private String imageKey;
+
+    // 분석을 요청한 가구. 가구별 태그 지침을 고를 때 쓴다. 가구 없이 요청했으면 null
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "furniture_type_id")
+    private FurnitureType furnitureType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ImageAnalysisStatus status;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private ImageAnalysisResult result;
+
+    private ImageAnalysis(Member member, String imageKey, FurnitureType furnitureType) {
+        this.member = member;
+        this.imageKey = imageKey;
+        this.furnitureType = furnitureType;
+        this.status = ImageAnalysisStatus.PENDING;
+    }
+
+    public static ImageAnalysis request(Member member, String imageKey, FurnitureType furnitureType) {
+        return new ImageAnalysis(member, imageKey, furnitureType);
+    }
+
+    public void complete(ImageAnalysisResult result) {
+        this.status = ImageAnalysisStatus.COMPLETED;
+        this.result = result;
+    }
+
+    public void fail() {
+        this.status = ImageAnalysisStatus.FAILED;
+    }
+
+    // 이 시각 이후에 만든 PENDING만 아직 진행 중이다
+    public static Instant pendingSince(Instant now) {
+        return now.minus(PENDING_TIMEOUT);
+    }
+
+    // 서버 재시작이나 대기열 거절로 처리되지 못한 요청도 60초가 지나면 실패로 보인다
+    public ImageAnalysisStatus currentStatus(Instant now) {
+        if (status == ImageAnalysisStatus.PENDING && getCreatedAt().plus(PENDING_TIMEOUT).isBefore(now)) {
+            return ImageAnalysisStatus.FAILED;
+        }
+        return status;
+    }
+}

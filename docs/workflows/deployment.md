@@ -19,6 +19,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 ## 서버 .env
 
 `~/toggleme/.env`에 두고 권한은 600으로 한다. 값은 서버에만 둔다.
+값은 꺾쇠(`<>`)·따옴표 없이 그대로 쓴다. 예: `KAKAO_APP_ID=1234567`
 
 | 키 | 필수 | 설명 |
 | --- | --- | --- |
@@ -27,6 +28,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 | `DB_ROOT_PASSWORD` | 필수 | mysql 컨테이너만 받는다 |
 | `JWT_SECRET` | 필수 | Base64 32바이트 이상, 로컬과 다른 값 |
 | `KAKAO_APP_ID` | 필수 | 카카오 앱 ID |
+| `GEMINI_API_KEY` | 필수 | 이미지 분석용 Gemini API 키(유료 등급 프로젝트. 무료 등급은 입력 데이터가 제품 개선에 쓰일 수 있다) |
 | `JDK_JAVA_OPTIONS` | 선택 | 메모리 조정 시에만. 지정하면 compose 기본값 전체를 대체한다 |
 
 - DB 계정·비밀번호는 mysql 볼륨을 처음 만들 때만 적용된다. 나중에 바꾸면 `ALTER USER`도 실행한다
@@ -72,6 +74,22 @@ docker system df
 | 디스크 사용률 | 70% 경고. 85% 이상이면 배포가 자동으로 중단된다 |
 
 기준을 넘으면 `JDK_JAVA_OPTIONS`·`mem_limit`을 조정하거나 인스턴스를 키운다.
+
+## 헬스체크 실패 시
+
+Backend CD가 실패하면 "Show server status on failure" 단계에 컨테이너 상태와 앱 로그 100줄이 출력된다.
+
+1. `ps -a`에서 app이 `Restarting`이거나 재시작 횟수가 늘고 있으면 앱 기동 실패다. 로그의 `APPLICATION FAILED TO START` 아래 Description을 본다
+2. 설정값 오류면 서버 `.env`를 고치고 다시 만든다
+
+   ```sh
+   cd ~/toggleme
+   APP_TAG=<배포할 커밋 SHA> docker compose -f docker-compose.prod.yml up -d --force-recreate app
+   ```
+
+3. 앱은 떠 있는데 502면 Nginx 설정과 `127.0.0.1:8080` 응답(`curl -s localhost:8080/actuator/health`)을 확인한다
+
+`APP_TAG`를 빼면 `latest`로 뜬다. 배포 기록과 맞추려면 커밋 SHA를 붙인다.
 
 ## 롤백
 

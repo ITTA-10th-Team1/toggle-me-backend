@@ -75,8 +75,18 @@ public class Item extends BaseTimeEntity {
         return new Item(member, furnitureType, recordedOn, imageKey, memo, visibility);
     }
 
+    // 카테고리를 바꿔도 등록일·사진·태그는 그대로다
+    public void changeFurnitureType(FurnitureType furnitureType) {
+        this.furnitureType = furnitureType;
+    }
+
+    // null은 바꾸지 않는다. 메모는 빈 문자열(공백 포함)을 주면 지운다
     public void update(String memo, ItemVisibility visibility) {
-        this.memo = memo;
-        this.visibility = visibility;
+        if (memo != null) {
+            this.memo = memo.isBlank() ? null : memo;
+        }
+        if (visibility != null) {
+            this.visibility = visibility;
+        }
     }
 }

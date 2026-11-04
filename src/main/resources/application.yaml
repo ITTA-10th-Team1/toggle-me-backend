@@ -3,6 +3,16 @@ spring:
     name: toggle-me
   config:
     import: optional:file:.env[.properties]
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: gemini-3.1-flash-lite
+    # 기본값(10회, 최대 수 분 대기)이면 Gemini 장애 시 분석 작업 스레드가 오래 묶인다
+    retry:
+      max-attempts: 2
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:toggleme}
     username: ${DB_USERNAME}

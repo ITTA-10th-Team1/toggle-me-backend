@@ -3,9 +3,9 @@ package com.itta.toggleme.item.exception;
 import com.itta.toggleme.global.exception.BusinessException;
 import com.itta.toggleme.global.exception.ErrorCode;
 
-public class FridgeNotSelectedException extends BusinessException {
+public class ItemTagInvalidException extends BusinessException {
 
-    public FridgeNotSelectedException() {
-        super(ErrorCode.FRIDGE_NOT_SELECTED);
+    public ItemTagInvalidException() {
+        super(ErrorCode.ITEM_TAG_INVALID);
     }
 }

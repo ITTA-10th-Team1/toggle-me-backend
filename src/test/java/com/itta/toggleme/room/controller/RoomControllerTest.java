@@ -11,6 +11,7 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
 import com.itta.toggleme.room.domain.RoomStyle;
 import com.itta.toggleme.room.domain.RoomStyleType;
 import com.itta.toggleme.room.domain.RoomVisibility;
@@ -19,7 +20,6 @@ import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomFloorRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Transactional
 class RoomControllerTest {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private MockMvc mockMvc;
@@ -180,7 +184,10 @@ class RoomControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(5))
                 .andExpect(jsonPath("$[0].furnitureTypeCode").value(furnitureTypes.get(0).getCode()))
-                .andExpect(jsonPath("$[0].positionX").value(1.0))
+                .andExpect(jsonPath("$[0].position.x").value(1.0))
+                .andExpect(jsonPath("$[0].position.z").value(0.0))
+                .andExpect(jsonPath("$[0].rotationQuaternion.w").value(1.0))
+                .andExpect(jsonPath("$[0].scale.y").value(1.0))
                 .andExpect(jsonPath("$[0].renderOrder").value(1))
                 .andExpect(jsonPath("$[4].hidden").value(true));
     }
@@ -267,11 +274,13 @@ class RoomControllerTest {
     }
 
     private void saveCatalog() {
+        // V17 기준 데이터(거울·냉장고)를 빼고 이 테스트가 만든 가구만 활성으로 둔다. 테스트 트랜잭션이 끝나면 되돌아간다
+        jdbcTemplate.update("UPDATE furniture_type SET status = 'INACTIVE'");
         furnitureTypes = new ArrayList<>();
         furnitureVariants = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
             FurnitureType type = FurnitureType.create(uniqueCode(), "가구 " + i, i);
-            type.configurePlacement(BigDecimal.valueOf(i), BigDecimal.ZERO, BigDecimal.ZERO, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypes.add(furnitureTypeRepository.save(type));
             furnitureVariants.add(furnitureVariantRepository.save(
                     FurnitureVariant.create(type, "기본 " + i, uniqueCode(), 1, 1)));

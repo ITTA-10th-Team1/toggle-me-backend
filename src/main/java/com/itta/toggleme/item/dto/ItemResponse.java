@@ -4,24 +4,29 @@ import com.itta.toggleme.item.domain.Item;
 import com.itta.toggleme.item.domain.ItemVisibility;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
-// imageUrl은 일정 시간 뒤 만료되는 보기 주소다. 만료되면 목록을 다시 조회한다
-public record FridgeFoodResponse(
+public record ItemResponse(
         Long id,
+        Long furnitureTypeId,
         LocalDate recordedOn,
         String imageUrl,
         String memo,
         ItemVisibility visibility,
+        // '#' 없는 태그 이름, 고른 순서대로
+        List<String> tags,
         Instant createdAt
 ) {
 
-    public static FridgeFoodResponse from(Item item, String imageUrl) {
-        return new FridgeFoodResponse(
+    public static ItemResponse from(Item item, String imageUrl, List<String> tags) {
+        return new ItemResponse(
                 item.getId(),
+                item.getFurnitureType().getId(),
                 item.getRecordedOn(),
                 imageUrl,
                 item.getMemo(),
                 item.getVisibility(),
+                tags,
                 item.getCreatedAt()
         );
     }

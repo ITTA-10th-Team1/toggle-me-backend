@@ -1,0 +1,539 @@
+package com.itta.toggleme.item.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.itta.toggleme.global.security.JwtTokenProvider;
+import com.itta.toggleme.item.domain.Item;
+import com.itta.toggleme.item.domain.ItemTag;
+import com.itta.toggleme.item.domain.ItemVisibility;
+import com.itta.toggleme.item.repository.ItemRepository;
+import com.itta.toggleme.item.repository.ItemTagRepository;
+import jakarta.persistence.EntityManager;
+import com.itta.toggleme.image.service.ImageService;
+import com.itta.toggleme.member.domain.Member;
+import com.itta.toggleme.member.repository.MemberRepository;
+import com.itta.toggleme.room.domain.FurnitureType;
+import com.itta.toggleme.room.domain.FurnitureVariant;
+import com.itta.toggleme.room.domain.Placement;
+import com.itta.toggleme.room.domain.RoomStyle;
+import com.itta.toggleme.room.domain.RoomStyleType;
+import com.itta.toggleme.room.domain.RoomVisibility;
+import com.itta.toggleme.room.repository.FurnitureTypeRepository;
+import com.itta.toggleme.room.repository.FurnitureVariantRepository;
+import com.itta.toggleme.room.repository.RoomStyleRepository;
+import com.itta.toggleme.room.service.RoomService;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+class ItemControllerTest {
+
+    private static final LocalDate TODAY = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private RoomStyleRepository roomStyleRepository;
+
+    @Autowired
+    private FurnitureTypeRepository furnitureTypeRepository;
+
+    @Autowired
+    private FurnitureVariantRepository furnitureVariantRepository;
+
+    @Autowired
+    private RoomService roomService;
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
+    private ItemTagRepository itemTagRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @MockitoBean
+    private ImageService imageService;
+
+    private Long fridgeTypeId;
+    private Long fridgeVariantId;
+    private List<Long> placedTypeIds;
+    private List<Long> placedVariantIds;
+    private Long notPlacedTypeId;
+
+    @BeforeEach
+    void setUp() {
+        roomStyleRepository.save(RoomStyle.create(RoomStyleType.WALL, "기본 벽", "room/wall/default.glb"));
+        roomStyleRepository.save(RoomStyle.create(RoomStyleType.FLOOR, "기본 바닥", "room/floor/default.glb"));
+        saveCatalog();
+        given(imageService.isUploadedBy(anyLong(), anyString())).willReturn(true);
+        given(imageService.createViewUrl(anyString())).willAnswer(call -> "https://view/" + call.getArgument(0));
+    }
+
+    @Test
+    void 방에_둔_가구에_아이템을_기록한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        String key = imageKey(member);
+
+        create(member, key, placedTypeIds.get(1), null)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.furnitureTypeId").value(placedTypeIds.get(1)))
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()))
+                .andExpect(jsonPath("$.imageUrl").value("https://view/" + key))
+                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+    }
+
+    @Test
+    void 방에_없는_가구에는_기록할_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), notPlacedTypeId, null)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ITEM_FURNITURE_NOT_SELECTED"));
+    }
+
+    @Test
+    void 없는_가구_종류는_404를_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), Long.MAX_VALUE, null)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FURNITURE_TYPE_NOT_FOUND"));
+    }
+
+    @Test
+    void 등록일은_오늘로_자동_기록하고_제한이_없는_가구는_하루_개수에_제한이_없다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        for (int i = 0; i < 11; i++) {
+            create(member, imageKey(member), placedTypeIds.get(1), TODAY.minusDays(2))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+        }
+    }
+
+    @Test
+    void 냉장고는_하루_1장까지_기록할_수_있다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        create(member, imageKey(member), fridgeTypeId, null)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+
+        create(member, imageKey(member), fridgeTypeId, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ITEM_DAILY_LIMIT_EXCEEDED"));
+    }
+
+    @Test
+    void 냉장고_하루_1장_제한은_회원과_날짜별로_센다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        // 어제 기록은 오늘 제한에 걸리지 않는다
+        saveItem(member, TODAY.minusDays(1));
+
+        create(member, imageKey(member), fridgeTypeId, null).andExpect(status().isCreated());
+        create(other, imageKey(other), fridgeTypeId, null).andExpect(status().isCreated());
+    }
+
+    @Test
+    void 카테고리를_냉장고로_바꾸는_것은_하루_제한에_걸리지_않는다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        create(member, imageKey(member), fridgeTypeId, null).andExpect(status().isCreated());
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        update(member, itemId, "{\"furnitureTypeId\":%d}".formatted(fridgeTypeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.furnitureTypeId").value(fridgeTypeId));
+    }
+
+    @Test
+    void 업로드되지_않은_이미지나_이미_쓴_이미지는_기록할_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        String missingKey = imageKey(member);
+        given(imageService.isUploadedBy(member.getId(), missingKey)).willReturn(false);
+        create(member, missingKey, fridgeTypeId, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
+
+        String usedKey = imageKey(member);
+        create(member, usedKey, placedTypeIds.get(1), null).andExpect(status().isCreated());
+        create(member, usedKey, placedTypeIds.get(1), null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
+    }
+
+    @Test
+    void 메모가_200자를_넘으면_400을_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+
+        mockMvc.perform(post("/api/v1/items")
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"imageKey":"%s","furnitureTypeId":%d,"memo":"%s","visibility":"PUBLIC"}
+                                """.formatted(imageKey(member), fridgeTypeId, "가".repeat(201))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    void 고른_태그는_샵과_공백을_떼고_중복을_빼서_순서대로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\" #추리 \", \"외국소설\", \"#추리\"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(2))
+                .andExpect(jsonPath("$.tags[0]").value("추리"))
+                .andExpect(jsonPath("$.tags[1]").value("외국소설"));
+    }
+
+    @Test
+    void 대소문자만_다른_태그는_소문자_하나로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\"Jazz\", \"jazz\", \" #JAZZ \"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(1))
+                .andExpect(jsonPath("$.tags[0]").value("jazz"));
+    }
+
+    @Test
+    void 악센트만_다른_태그는_서로_다른_태그로_저장한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[\"café\", \"cafe\"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(2));
+    }
+
+    @Test
+    void 태그_없이도_기록할_수_있다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        create(member, imageKey(member), placedTypeIds.get(1), null, "[]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(0));
+    }
+
+    @Test
+    void 태그가_3개를_넘거나_비었거나_20자를_넘으면_400을_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long typeId = placedTypeIds.get(1);
+
+        create(member, imageKey(member), typeId, null, "[\"a\", \"b\", \"c\", \"d\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+        create(member, imageKey(member), typeId, null, "[\"#\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_TAG_INVALID"));
+        create(member, imageKey(member), typeId, null, "[\"%s\"]".formatted("가".repeat(21)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_TAG_INVALID"));
+    }
+
+    @Test
+    void 태그가_붙은_아이템을_지우면_태그도_지워진다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        String body = create(member, imageKey(member), fridgeTypeId, TODAY, "[\"야식\"]")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long itemId = Long.valueOf(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+        // 등록과 삭제는 실제로 다른 요청이다. 등록 때 영속성 컨텍스트에 남은 태그를 비운다
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNoContent());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(itemTagRepository.findAllByItemIdOrderByPosition(itemId)).isEmpty();
+    }
+
+    @Test
+    void 가구_종류와_공개_여부가_없으면_400을_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        mockMvc.perform(post("/api/v1/items")
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"imageKey\":\"%s\"}".formatted(imageKey(member))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    void 날짜별로_내_아이템만_태그와_함께_조회한다() throws Exception {
+        Member me = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        LocalDate yesterday = TODAY.minusDays(1);
+        Item first = saveItem(me, yesterday);
+        saveItem(me, yesterday);
+        saveItem(me, TODAY);
+        saveItem(other, yesterday);
+        itemTagRepository.save(ItemTag.of(first, "a", 0));
+        itemTagRepository.save(ItemTag.of(first, "b", 1));
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(me))
+                        .param("furnitureTypeId", fridgeTypeId.toString())
+                        .param("date", yesterday.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].tags.length()").value(2))
+                .andExpect(jsonPath("$[0].tags[0]").value("a"))
+                .andExpect(jsonPath("$[1].tags.length()").value(0));
+    }
+
+    @Test
+    void 없는_가구_종류로_조회하면_404를_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(member))
+                        .param("furnitureTypeId", Long.MAX_VALUE + "")
+                        .param("date", TODAY.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FURNITURE_TYPE_NOT_FOUND"));
+    }
+
+    @Test
+    void 달력은_사진이_있는_날짜만_개수와_첫_사진으로_내려준다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        LocalDate day = TODAY.withDayOfMonth(1);
+        Item first = saveItem(member, day);
+        saveItem(member, day);
+
+        mockMvc.perform(get("/api/v1/items/calendar")
+                        .header("Authorization", bearer(member))
+                        .param("furnitureTypeId", fridgeTypeId.toString())
+                        .param("month", YearMonth.from(day).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].date").value(day.toString()))
+                .andExpect(jsonPath("$[0].count").value(2))
+                .andExpect(jsonPath("$[0].thumbnailUrl").value("https://view/" + first.getImageKey()));
+    }
+
+    @Test
+    void 메모와_공개_여부를_수정한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memo\":\"오늘 착장\",\"visibility\":\"PRIVATE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("오늘 착장"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+    }
+
+    @Test
+    void 보내지_않은_값은_수정하지_않는다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+        update(member, itemId, "{\"memo\":\"오늘 착장\",\"visibility\":\"PUBLIC\"}").andExpect(status().isOk());
+
+        update(member, itemId, "{\"visibility\":\"PRIVATE\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("오늘 착장"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+        update(member, itemId, "{\"memo\":\"바꾼 메모\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("바꾼 메모"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+    }
+
+    @Test
+    void 메모는_빈_문자열을_보내면_지운다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+        update(member, itemId, "{\"memo\":\"오늘 착장\"}").andExpect(status().isOk());
+
+        update(member, itemId, "{\"memo\":\"\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value(nullValue()));
+    }
+
+    @Test
+    void 내_아이템_한_건을_상세_조회한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(itemId))
+                .andExpect(jsonPath("$.furnitureTypeId").value(placedTypeIds.get(1)));
+    }
+
+    @Test
+    void 카테고리를_바꿔도_등록일은_유지된다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Item item = itemRepository.save(Item.record(member, furnitureTypeRepository.findById(placedTypeIds.get(1))
+                .orElseThrow(), TODAY.minusDays(5), imageKey(member), null, ItemVisibility.PUBLIC));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", item.getId())
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureTypeId\":%d,\"visibility\":\"PUBLIC\"}".formatted(placedTypeIds.get(2))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.furnitureTypeId").value(placedTypeIds.get(2)))
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.minusDays(5).toString()));
+    }
+
+    @Test
+    void 방에_없는_가구로는_카테고리를_바꿀_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(member))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"furnitureTypeId\":%d,\"visibility\":\"PUBLIC\"}".formatted(notPlacedTypeId)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ITEM_FURNITURE_NOT_SELECTED"));
+    }
+
+    @Test
+    void 남의_아이템은_수정하거나_삭제할_수_없다() throws Exception {
+        Member owner = saveMemberWithRoom(false);
+        Member other = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(owner, placedTypeIds.get(1));
+
+        mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(other))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memo\":null,\"visibility\":\"PRIVATE\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_FOUND"));
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(other)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 아이템을_삭제하면_사진도_지운다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
+                .andExpect(status().isNotFound());
+    }
+
+    private ResultActions update(Member member, Long itemId, String body) throws Exception {
+        return mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                .header("Authorization", bearer(member))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+    }
+
+    // 등록 API는 항상 오늘로 기록하므로 다른 날짜의 아이템은 직접 저장한다
+    private Item saveItem(Member member, LocalDate recordedOn) {
+        FurnitureType fridge = furnitureTypeRepository.findById(fridgeTypeId).orElseThrow();
+        return itemRepository.save(Item.record(member, fridge, recordedOn, imageKey(member), null,
+                ItemVisibility.PUBLIC));
+    }
+
+    private Long createAndGetId(Member member, Long typeId) throws Exception {
+        String body = create(member, imageKey(member), typeId, TODAY, "[]")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return Long.valueOf(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+    }
+
+    private ResultActions create(Member member, String key, Long furnitureTypeId, LocalDate recordedOn)
+            throws Exception {
+        return create(member, key, furnitureTypeId, recordedOn, "null");
+    }
+
+    private ResultActions create(Member member, String key, Long furnitureTypeId, LocalDate recordedOn,
+            String tagsJson) throws Exception {
+        String recordedOnJson = recordedOn == null ? "null" : "\"" + recordedOn + "\"";
+        return mockMvc.perform(post("/api/v1/items")
+                .header("Authorization", bearer(member))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"imageKey":"%s","furnitureTypeId":%d,"recordedOn":%s,"visibility":"PUBLIC","tags":%s}
+                        """.formatted(key, furnitureTypeId, recordedOnJson, tagsJson)));
+    }
+
+    private String imageKey(Member member) {
+        return "images/" + member.getId() + "/" + UUID.randomUUID() + ".jpg";
+    }
+
+    private Member saveMemberWithRoom(boolean withFridge) {
+        String handle = "user_" + UUID.randomUUID().toString().substring(0, 8);
+        Member member = memberRepository.save(Member.create(handle, "토글러"));
+        List<Long> variantIds = new ArrayList<>(placedVariantIds);
+        if (withFridge) {
+            variantIds.set(0, fridgeVariantId);
+        }
+        roomService.createDefaultRoom(member, variantIds, RoomVisibility.SOCIAL_ON);
+        return member;
+    }
+
+    private String bearer(Member member) {
+        return "Bearer " + jwtTokenProvider.createAccessToken(member.getId());
+    }
+
+    // 방에는 가구 4개를 둔다. 냉장고가 있는 방은 첫 가구를 냉장고로 바꾼다. 다섯째 가구는 방에 두지 않는다
+    private void saveCatalog() {
+        FurnitureType fridge = furnitureTypeRepository.findByCode("fridge")
+                .orElseGet(() -> furnitureTypeRepository.save(FurnitureType.create("fridge", "냉장고", 99)));
+        fridge.configurePlacement(Placement.at(10, 0, 0), 99);
+        fridgeTypeId = fridge.getId();
+        fridgeVariantId = furnitureVariantRepository.save(
+                FurnitureVariant.create(fridge, "기본 냉장고", UUID.randomUUID().toString(), 1, 1)).getId();
+
+        placedTypeIds = new ArrayList<>();
+        placedVariantIds = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            FurnitureType type = FurnitureType.create(UUID.randomUUID().toString(), "가구 " + i, i);
+            type.configurePlacement(Placement.at(i, 0, 0), i);
+            furnitureTypeRepository.save(type);
+            Long variantId = furnitureVariantRepository.save(
+                    FurnitureVariant.create(type, "기본 " + i, UUID.randomUUID().toString(), 1, 1)).getId();
+            if (i == 5) {
+                notPlacedTypeId = type.getId();
+            } else {
+                placedTypeIds.add(type.getId());
+                placedVariantIds.add(variantId);
+            }
+        }
+    }
+}

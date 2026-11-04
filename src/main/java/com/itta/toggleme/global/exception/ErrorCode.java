@@ -34,6 +34,9 @@ public enum ErrorCode {
     MEMBER_PROFILE_REQUIRED(HttpStatus.CONFLICT, "프로필 설정을 먼저 완료해야 합니다."),
     MEMBER_ONBOARDING_ALREADY_COMPLETED(HttpStatus.CONFLICT, "온보딩이 완료된 회원은 프로필을 변경할 수 없습니다."),
 
+    // follow
+    FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 팔로우할 수 없습니다."),
+
     // room
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."),
     ROOM_STYLE_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "기본 방 스타일이 등록되어 있지 않습니다."),
@@ -45,12 +48,18 @@ public enum ErrorCode {
             "가구의 고정 위치가 등록되어 있지 않습니다."
     ),
 
+    // image
+    IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
+    IMAGE_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "이미지 분석을 찾을 수 없습니다."),
+    IMAGE_ANALYSIS_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "분석 요청이 많습니다. 잠시 후 다시 시도해 주세요."),
+    IMAGE_ANALYSIS_TOO_MANY(HttpStatus.TOO_MANY_REQUESTS, "진행 중인 분석이 많습니다. 잠시 후 다시 시도해 주세요."),
+
     // item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
     ITEM_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 이미지입니다."),
-    ITEM_RECORDED_DATE_INVALID(HttpStatus.BAD_REQUEST, "미래 날짜로는 기록할 수 없습니다."),
     ITEM_DAILY_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "하루에 올릴 수 있는 사진 수를 넘었습니다."),
-    FRIDGE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 냉장고를 둔 회원만 사용할 수 있습니다.");
+    ITEM_FURNITURE_NOT_SELECTED(HttpStatus.FORBIDDEN, "방에 둔 가구에만 기록할 수 있습니다."),
+    ITEM_TAG_INVALID(HttpStatus.BAD_REQUEST, "태그는 1~20자로 입력해 주세요.");
 
     private final HttpStatus status;
     private final String message;
