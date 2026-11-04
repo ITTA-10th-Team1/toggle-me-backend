@@ -4,6 +4,7 @@ import com.itta.toggleme.image.domain.ImageAnalysis;
 import com.itta.toggleme.image.domain.ImageAnalysisResult;
 import com.itta.toggleme.image.domain.ImageAnalysisStatus;
 import com.itta.toggleme.image.repository.ImageAnalysisRepository;
+import com.itta.toggleme.room.domain.FurnitureType;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.time.Instant;
@@ -46,8 +47,15 @@ public class ImageAnalysisWorker {
         return imageKey.endsWith(".heic");
     }
 
+    // 공통 규칙 뒤에 가구별 지침을 한 줄 덧붙인다. 지침이 없는 가구나 가구 없는 요청은 공통 규칙만 쓴다
+    static String promptFor(FurnitureType furnitureType) {
+        return FurnitureTagGuide.forCode(furnitureType == null ? null : furnitureType.getCode())
+                .map(guide -> PROMPT + guide + "\n")
+                .orElse(PROMPT);
+    }
+
     public void analyze(Long analysisId) {
-        ImageAnalysis analysis = imageAnalysisRepository.findById(analysisId).orElse(null);
+        ImageAnalysis analysis = imageAnalysisRepository.findByIdWithFurnitureType(analysisId).orElse(null);
         if (analysis == null) {
             log.warn("Image analysis {} not found", analysisId);
             return;
@@ -59,8 +67,11 @@ public class ImageAnalysisWorker {
             return;
         }
         String imageKey = analysis.getImageKey();
+        String prompt = promptFor(analysis.getFurnitureType());
         try {
-            ImageAnalysisResult result = sendsBytes(imageKey) ? analyzeBytes(imageKey) : analyzeUrl(imageKey);
+            ImageAnalysisResult result = sendsBytes(imageKey)
+                    ? analyzeBytes(imageKey, prompt)
+                    : analyzeUrl(imageKey, prompt);
             // 모델이 빈 응답을 주면 결과 없는 COMPLETED가 되지 않게 실패로 둔다. 앱은 태그 없이 기록을 이어간다
             if (result == null) {
                 log.warn("Image analysis {} failed: empty result", analysisId);
@@ -75,19 +86,19 @@ public class ImageAnalysisWorker {
         imageAnalysisRepository.save(analysis);
     }
 
-    private ImageAnalysisResult analyzeUrl(String imageKey) throws MalformedURLException {
+    private ImageAnalysisResult analyzeUrl(String imageKey, String prompt) throws MalformedURLException {
         MimeType mimeType = MimeType.valueOf(imageKey.endsWith(".png") ? "image/png" : "image/jpeg");
         var imageUrl = URI.create(imageService.createViewUrl(imageKey)).toURL();
         return chatClient.prompt()
-                .user(user -> user.text(PROMPT).media(mimeType, imageUrl))
+                .user(user -> user.text(prompt).media(mimeType, imageUrl))
                 .call()
                 .entity(ImageAnalysisResult.class);
     }
 
-    private ImageAnalysisResult analyzeBytes(String imageKey) {
+    private ImageAnalysisResult analyzeBytes(String imageKey, String prompt) {
         ResponseBytes<GetObjectResponse> image = imageService.download(imageKey);
         return chatClient.prompt()
-                .user(user -> user.text(PROMPT).media(
+                .user(user -> user.text(prompt).media(
                         MimeType.valueOf(image.response().contentType()),
                         new ByteArrayResource(image.asByteArray())))
                 .call()

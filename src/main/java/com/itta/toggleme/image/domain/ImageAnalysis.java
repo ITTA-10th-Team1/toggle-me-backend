@@ -2,6 +2,7 @@ package com.itta.toggleme.image.domain;
 
 import com.itta.toggleme.global.entity.BaseTimeEntity;
 import com.itta.toggleme.member.domain.Member;
+import com.itta.toggleme.room.domain.FurnitureType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,6 +40,11 @@ public class ImageAnalysis extends BaseTimeEntity {
     @Column(name = "image_key", nullable = false, length = 500)
     private String imageKey;
 
+    // 분석을 요청한 가구. 가구별 태그 지침을 고를 때 쓴다. 가구 없이 요청했으면 null
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "furniture_type_id")
+    private FurnitureType furnitureType;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ImageAnalysisStatus status;
@@ -46,14 +52,15 @@ public class ImageAnalysis extends BaseTimeEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private ImageAnalysisResult result;
 
-    private ImageAnalysis(Member member, String imageKey) {
+    private ImageAnalysis(Member member, String imageKey, FurnitureType furnitureType) {
         this.member = member;
         this.imageKey = imageKey;
+        this.furnitureType = furnitureType;
         this.status = ImageAnalysisStatus.PENDING;
     }
 
-    public static ImageAnalysis request(Member member, String imageKey) {
-        return new ImageAnalysis(member, imageKey);
+    public static ImageAnalysis request(Member member, String imageKey, FurnitureType furnitureType) {
+        return new ImageAnalysis(member, imageKey, furnitureType);
     }
 
     public void complete(ImageAnalysisResult result) {

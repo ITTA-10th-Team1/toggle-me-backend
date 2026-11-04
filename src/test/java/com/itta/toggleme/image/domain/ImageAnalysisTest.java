@@ -28,7 +28,7 @@ class ImageAnalysisTest {
     }
 
     private ImageAnalysis requestedAt(Instant createdAt) {
-        ImageAnalysis analysis = ImageAnalysis.request(null, "images/7/a.jpg");
+        ImageAnalysis analysis = ImageAnalysis.request(null, "images/7/a.jpg", null);
         ReflectionTestUtils.setField(analysis, "createdAt", createdAt);
         return analysis;
     }
