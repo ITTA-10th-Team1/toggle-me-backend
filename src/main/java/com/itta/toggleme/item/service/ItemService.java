@@ -7,6 +7,7 @@ import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
 import com.itta.toggleme.item.dto.ItemUpdateRequest;
+import com.itta.toggleme.item.exception.ItemDailyLimitExceededException;
 import com.itta.toggleme.item.exception.ItemFurnitureNotSelectedException;
 import com.itta.toggleme.item.exception.ItemImageInvalidException;
 import com.itta.toggleme.item.exception.ItemNotFoundException;
@@ -107,20 +108,18 @@ public class ItemService {
     @Transactional
     public Item record(Long memberId, ItemCreateRequest request) {
         List<String> tagNames = normalizeTags(request.tags());
-        // 회원 행을 잠가 같은 회원의 동시 등록이 가구별 개수 제한을 넘지 않게 한다
+        // 회원 행을 잠가 같은 회원의 동시 등록이 가구별 개수 제한을 넘지 않게 하고, 같은 이미지 키가 동시에 쓰이는 것도 막는다
         Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         FurnitureType furnitureType = furnitureTypeRepository.findById(request.furnitureTypeId())
                 .orElseThrow(FurnitureTypeNotFoundException::new);
         ItemRecordHandler handler = handlers.get(furnitureType.getCode());
 
-        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(
-                memberId, RoomStatus.ACTIVE, furnitureType.getId())) {
-            throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
+        requireFurnitureSelected(memberId, furnitureType);
+        LocalDate recordedOn = LocalDate.now(SERVICE_ZONE);
+        requireWithinDailyLimit(memberId, furnitureType, recordedOn);
+        if (handler != null) {
+            handler.validate(memberId, furnitureType, request);
         }
-        LocalDate today = LocalDate.now(SERVICE_ZONE);
-        LocalDate recordedOn = handler == null
-                ? today
-                : handler.prepare(memberId, furnitureType, request, today);
         if (itemRepository.existsByImageKey(request.imageKey())
                 || !imageService.isUploadedBy(memberId, request.imageKey())) {
             throw new ItemImageInvalidException();
@@ -166,11 +165,22 @@ public class ItemService {
                 .toList();
     }
 
-    // 메모와 공개 여부만 바꾼다. 가구·날짜·사진·태그는 바꾸지 않는다
+    public ItemResponse getDetail(Long memberId, Long itemId) {
+        return toResponses(List.of(findMyItem(memberId, itemId))).getFirst();
+    }
+
+    // 메모·공개 여부·카테고리를 바꾼다. 등록일·사진·태그는 바꾸지 않는다
     @Transactional
     public ItemResponse update(Long memberId, Long itemId, ItemUpdateRequest request) {
         Item item = findMyItem(memberId, itemId);
         item.update(request.memo(), request.visibility());
+        Long targetId = request.furnitureTypeId();
+        if (targetId != null && !targetId.equals(item.getFurnitureType().getId())) {
+            FurnitureType target = furnitureTypeRepository.findById(targetId)
+                    .orElseThrow(FurnitureTypeNotFoundException::new);
+            requireFurnitureSelected(memberId, target);
+            item.changeFurnitureType(target);
+        }
         return toResponses(List.of(item)).getFirst();
     }
 
@@ -190,6 +200,25 @@ public class ItemService {
                 } catch (RuntimeException e) {
                     log.warn("Item image delete failed: {}", e.getClass().getSimpleName());
                 }
+            }
+        });
+    }
+
+    // 방에 켜진 가구에만 기록하거나 옮길 수 있다
+    private void requireFurnitureSelected(Long memberId, FurnitureType furnitureType) {
+        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(
+                memberId, RoomStatus.ACTIVE, furnitureType.getId())) {
+            ItemRecordHandler handler = handlers.get(furnitureType.getCode());
+            throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
+        }
+    }
+
+    // 가구별 하루 제한(ItemDailyLimit). 카테고리 변경으로 옮겨 오는 기록에는 걸지 않는다
+    private void requireWithinDailyLimit(Long memberId, FurnitureType furnitureType, LocalDate recordedOn) {
+        ItemDailyLimit.of(furnitureType.getCode()).ifPresent(limit -> {
+            if (itemRepository.countByMemberIdAndFurnitureTypeIdAndRecordedOn(
+                    memberId, furnitureType.getId(), recordedOn) >= limit) {
+                throw new ItemDailyLimitExceededException();
             }
         });
     }
