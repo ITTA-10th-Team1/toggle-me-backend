@@ -103,7 +103,8 @@ class MemberControllerTest {
     }
 
     @Test
-    void 프로필을_저장하면_다음_온보딩_단계를_응답한다() throws Exception {
+    void 프로필을_저장하면_켜진_가구로_공개_방을_만들고_온보딩을_완료한다() throws Exception {
+        List<FurnitureVariant> variants = saveFurnitureVariants(2);
         Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
 
         mockMvc.perform(patch("/api/v1/members/me/profile")
@@ -111,7 +112,13 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"step_" + randomSuffix() + "\",\"nickname\":\"토글러\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+                .andExpect(jsonPath("$.onboardingStep").value("DONE"));
+
+        assertThat(roomRepository.findAllByOwnerIdOrderById(incomplete.getId())).singleElement().satisfies(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_ON));
+        assertThat(roomFurnitureRepository.findAll())
+                .extracting(furniture -> furniture.getVariant().getId())
+                .containsAll(variants.stream().map(FurnitureVariant::getId).toList());
     }
 
     @Test
@@ -169,18 +176,13 @@ class MemberControllerTest {
     }
 
     @Test
-    void 프로필을_저장하고_같은_값으로_다시_저장할_수_있다() throws Exception {
+    void 프로필을_저장하면_핸들과_닉네임을_정리해서_저장한다() throws Exception {
         mockMvc.perform(patch("/api/v1/members/me/profile")
                         .header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"  New_Name  \",\"nickname\":\" 지인 \"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.handle").value("new_name"))
                 .andExpect(jsonPath("$.nickname").value("지인"));
-        mockMvc.perform(patch("/api/v1/members/me/profile")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"handle\":\"new_name\",\"nickname\":\"지인\"}"))
-                .andExpect(status().isOk());
     }
 
     @Test

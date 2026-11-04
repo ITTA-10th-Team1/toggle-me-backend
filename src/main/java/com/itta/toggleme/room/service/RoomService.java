@@ -73,6 +73,18 @@ public class RoomService {
                 .orElseGet(() -> createRoomWithFirstFloor(owner, variants, visibility));
     }
 
+    // MVP는 가구 선택 화면이 없어 켜진 가구마다 첫 디자인으로 방을 만든다. 선택 화면이 생기면 지운다
+    @Transactional
+    public Long createMvpDefaultRoom(Member owner) {
+        List<Long> variantIds = findActiveFurnitureTypes().stream()
+                .map(type -> furnitureVariantRepository
+                        .findFirstByFurnitureTypeIdAndStatusOrderById(type.getId(), CatalogStatus.ACTIVE)
+                        .orElseThrow(FurnitureVariantNotFoundException::new)
+                        .getId())
+                .toList();
+        return createDefaultRoom(owner, variantIds, RoomVisibility.SOCIAL_ON);
+    }
+
     public List<RoomResponse> getMyRooms(Long memberId) {
         return roomRepository.findAllByOwnerIdAndStatusOrderById(memberId, RoomStatus.ACTIVE).stream()
                 .map(RoomResponse::from)
