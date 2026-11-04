@@ -136,13 +136,47 @@ class ItemControllerTest {
     }
 
     @Test
-    void 등록일은_오늘로_자동_기록하고_하루_개수에_제한이_없다() throws Exception {
+    void 등록일은_오늘로_자동_기록하고_제한이_없는_가구는_하루_개수에_제한이_없다() throws Exception {
         Member member = saveMemberWithRoom(true);
         for (int i = 0; i < 11; i++) {
-            create(member, imageKey(member), fridgeTypeId, TODAY.minusDays(2))
+            create(member, imageKey(member), placedTypeIds.get(1), TODAY.minusDays(2))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
         }
+    }
+
+    @Test
+    void 냉장고는_하루_1장까지_기록할_수_있다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        create(member, imageKey(member), fridgeTypeId, null)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+
+        create(member, imageKey(member), fridgeTypeId, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ITEM_DAILY_LIMIT_EXCEEDED"));
+    }
+
+    @Test
+    void 냉장고_하루_1장_제한은_회원과_날짜별로_센다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        // 어제 기록은 오늘 제한에 걸리지 않는다
+        saveItem(member, TODAY.minusDays(1));
+
+        create(member, imageKey(member), fridgeTypeId, null).andExpect(status().isCreated());
+        create(other, imageKey(other), fridgeTypeId, null).andExpect(status().isCreated());
+    }
+
+    @Test
+    void 카테고리를_냉장고로_바꾸는_것은_하루_제한에_걸리지_않는다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        create(member, imageKey(member), fridgeTypeId, null).andExpect(status().isCreated());
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+
+        update(member, itemId, "{\"furnitureTypeId\":%d}".formatted(fridgeTypeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.furnitureTypeId").value(fridgeTypeId));
     }
 
     @Test
@@ -155,8 +189,8 @@ class ItemControllerTest {
                 .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
 
         String usedKey = imageKey(member);
-        create(member, usedKey, fridgeTypeId, null).andExpect(status().isCreated());
-        create(member, usedKey, fridgeTypeId, null)
+        create(member, usedKey, placedTypeIds.get(1), null).andExpect(status().isCreated());
+        create(member, usedKey, placedTypeIds.get(1), null)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ITEM_IMAGE_INVALID"));
     }

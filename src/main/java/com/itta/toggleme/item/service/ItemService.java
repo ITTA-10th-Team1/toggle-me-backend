@@ -107,14 +107,16 @@ public class ItemService {
     @Transactional
     public Item record(Long memberId, ItemCreateRequest request) {
         List<String> tagNames = normalizeTags(request.tags());
-        Member member = memberRepository.findById(memberId).orElseThrow(MemberNotFoundException::new);
+        // 회원 행을 잠가 같은 회원의 동시 등록이 가구별 개수 제한을 넘지 않게 하고, 같은 이미지 키가 동시에 쓰이는 것도 막는다
+        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         FurnitureType furnitureType = furnitureTypeRepository.findById(request.furnitureTypeId())
                 .orElseThrow(FurnitureTypeNotFoundException::new);
         ItemRecordHandler handler = handlers.get(furnitureType.getCode());
 
         requireFurnitureSelected(memberId, furnitureType);
+        LocalDate recordedOn = LocalDate.now(SERVICE_ZONE);
         if (handler != null) {
-            handler.validate(memberId, furnitureType, request);
+            handler.validate(memberId, furnitureType, recordedOn, request);
         }
         if (itemRepository.existsByImageKey(request.imageKey())
                 || !imageService.isUploadedBy(memberId, request.imageKey())) {
@@ -124,7 +126,7 @@ public class ItemService {
         Item item = itemRepository.save(Item.record(
                 member,
                 furnitureType,
-                LocalDate.now(SERVICE_ZONE),
+                recordedOn,
                 request.imageKey(),
                 request.memo(),
                 request.visibility()
