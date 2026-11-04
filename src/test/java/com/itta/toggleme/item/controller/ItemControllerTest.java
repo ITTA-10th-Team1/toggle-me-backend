@@ -1,6 +1,7 @@
 package com.itta.toggleme.item.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -297,6 +298,33 @@ class ItemControllerTest {
     }
 
     @Test
+    void 보내지_않은_값은_수정하지_않는다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+        update(member, itemId, "{\"memo\":\"오늘 착장\",\"visibility\":\"PUBLIC\"}").andExpect(status().isOk());
+
+        update(member, itemId, "{\"visibility\":\"PRIVATE\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("오늘 착장"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+        update(member, itemId, "{\"memo\":\"바꾼 메모\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value("바꾼 메모"))
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+    }
+
+    @Test
+    void 메모는_빈_문자열을_보내면_지운다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+        Long itemId = createAndGetId(member, placedTypeIds.get(1));
+        update(member, itemId, "{\"memo\":\"오늘 착장\"}").andExpect(status().isOk());
+
+        update(member, itemId, "{\"memo\":\"\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memo").value(nullValue()));
+    }
+
+    @Test
     void 남의_아이템은_수정하거나_삭제할_수_없다() throws Exception {
         Member owner = saveMemberWithRoom(false);
         Member other = saveMemberWithRoom(false);
@@ -321,6 +349,13 @@ class ItemControllerTest {
                 .andExpect(status().isNoContent());
         mockMvc.perform(delete("/api/v1/items/{itemId}", itemId).header("Authorization", bearer(member)))
                 .andExpect(status().isNotFound());
+    }
+
+    private ResultActions update(Member member, Long itemId, String body) throws Exception {
+        return mockMvc.perform(patch("/api/v1/items/{itemId}", itemId)
+                .header("Authorization", bearer(member))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
     }
 
     private Long createAndGetId(Member member, Long typeId) throws Exception {

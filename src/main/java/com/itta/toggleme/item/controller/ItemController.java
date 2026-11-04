@@ -65,7 +65,7 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getCalendar(memberId(jwt), furnitureTypeId, month));
     }
 
-    @Operation(summary = "기록 수정 (메모·공개 여부)")
+    @Operation(summary = "기록 수정 (보낸 값만 바꿈, 메모는 빈 문자열이면 삭제)")
     @PatchMapping("/{itemId}")
     public ResponseEntity<ItemResponse> update(
             @AuthenticationPrincipal Jwt jwt,
