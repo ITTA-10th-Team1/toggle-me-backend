@@ -3,10 +3,13 @@ package com.itta.toggleme.item.service;
 import com.itta.toggleme.image.service.ImageService;
 import com.itta.toggleme.item.domain.Item;
 import com.itta.toggleme.item.domain.ItemTag;
+import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
+import com.itta.toggleme.item.dto.ItemUpdateRequest;
 import com.itta.toggleme.item.exception.ItemFurnitureNotSelectedException;
 import com.itta.toggleme.item.exception.ItemImageInvalidException;
+import com.itta.toggleme.item.exception.ItemNotFoundException;
 import com.itta.toggleme.item.exception.ItemTagInvalidException;
 import com.itta.toggleme.item.repository.ItemRepository;
 import com.itta.toggleme.item.repository.ItemTagRepository;
@@ -20,17 +23,24 @@ import com.itta.toggleme.room.exception.FurnitureTypeNotFoundException;
 import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.RoomFurnitureRepository;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-// 모든 가구의 아이템 등록이 거치는 곳. 가구별 규칙은 ItemRecordHandler로 분기한다
+// 모든 가구의 아이템 등록·조회·수정·삭제가 거치는 곳. 가구별 규칙은 ItemRecordHandler로 분기한다
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 public class ItemService {
@@ -128,6 +138,82 @@ public class ItemService {
             itemTagRepository.save(ItemTag.of(item, tagNames.get(position), position));
         }
         return item;
+    }
+
+    // 그날 기록한 아이템. 가구가 방에 켜져 있는지는 보지 않는다(방에서 뺀 뒤에도 기록은 볼 수 있다)
+    public List<ItemResponse> getByDate(Long memberId, Long furnitureTypeId, LocalDate date) {
+        requireFurnitureType(furnitureTypeId);
+        List<Item> items = itemRepository.findAllByMemberIdAndFurnitureTypeIdAndRecordedOnOrderById(
+                memberId, furnitureTypeId, date);
+        return toResponses(items);
+    }
+
+    public List<ItemCalendarDayResponse> getCalendar(Long memberId, Long furnitureTypeId, YearMonth month) {
+        requireFurnitureType(furnitureTypeId);
+        List<Item> items = itemRepository
+                .findAllByMemberIdAndFurnitureTypeIdAndRecordedOnBetweenOrderByRecordedOnAscIdAsc(
+                        memberId, furnitureTypeId, month.atDay(1), month.atEndOfMonth());
+        Map<LocalDate, List<Item>> itemsByDate = new LinkedHashMap<>();
+        for (Item item : items) {
+            itemsByDate.computeIfAbsent(item.getRecordedOn(), date -> new ArrayList<>()).add(item);
+        }
+        return itemsByDate.entrySet().stream()
+                .map(entry -> new ItemCalendarDayResponse(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        imageService.createViewUrl(entry.getValue().getFirst().getImageKey())
+                ))
+                .toList();
+    }
+
+    // 메모와 공개 여부만 바꾼다. 가구·날짜·사진·태그는 바꾸지 않는다
+    @Transactional
+    public ItemResponse update(Long memberId, Long itemId, ItemUpdateRequest request) {
+        Item item = findMyItem(memberId, itemId);
+        item.update(request.memo(), request.visibility());
+        return toResponses(List.of(item)).getFirst();
+    }
+
+    @Transactional
+    public void delete(Long memberId, Long itemId) {
+        Item item = findMyItem(memberId, itemId);
+        itemRepository.delete(item);
+        // DB 삭제가 확정된 뒤에 S3 파일을 지운다. 롤백되면 사진은 남는다
+        String imageKey = item.getImageKey();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // DB는 이미 지워졌으므로 S3 삭제가 실패해도 오류로 응답하지 않는다(앱이 재시도하면 404가 된다).
+                // 사진 키는 로그에 남기지 않는다
+                try {
+                    imageService.delete(imageKey);
+                } catch (RuntimeException e) {
+                    log.warn("Item image delete failed: {}", e.getClass().getSimpleName());
+                }
+            }
+        });
+    }
+
+    private Item findMyItem(Long memberId, Long itemId) {
+        return itemRepository.findByIdAndMemberId(itemId, memberId).orElseThrow(ItemNotFoundException::new);
+    }
+
+    private void requireFurnitureType(Long furnitureTypeId) {
+        if (!furnitureTypeRepository.existsById(furnitureTypeId)) {
+            throw new FurnitureTypeNotFoundException();
+        }
+    }
+
+    // 태그는 한 번에 모아 조회한다
+    private List<ItemResponse> toResponses(List<Item> items) {
+        Map<Long, List<String>> tagsByItemId = itemTagRepository
+                .findAllByItemIdInOrderByPosition(items.stream().map(Item::getId).toList()).stream()
+                .collect(Collectors.groupingBy(tag -> tag.getItem().getId(),
+                        Collectors.mapping(ItemTag::getName, Collectors.toList())));
+        return items.stream()
+                .map(item -> ItemResponse.from(item, imageService.createViewUrl(item.getImageKey()),
+                        tagsByItemId.getOrDefault(item.getId(), List.of())))
+                .toList();
     }
 
     // '#'와 앞뒤 공백을 떼고 소문자로 바꾼 뒤 같은 태그는 하나만 남긴다. 같은 태그가 같은 값으로 저장돼야 방 태그 집계가 맞는다

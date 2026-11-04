@@ -75,8 +75,13 @@ public class Item extends BaseTimeEntity {
         return new Item(member, furnitureType, recordedOn, imageKey, memo, visibility);
     }
 
+    // null은 바꾸지 않는다. 메모는 빈 문자열(공백 포함)을 주면 지운다
     public void update(String memo, ItemVisibility visibility) {
-        this.memo = memo;
-        this.visibility = visibility;
+        if (memo != null) {
+            this.memo = memo.isBlank() ? null : memo;
+        }
+        if (visibility != null) {
+            this.visibility = visibility;
+        }
     }
 }
