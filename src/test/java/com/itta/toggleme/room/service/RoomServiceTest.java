@@ -32,12 +32,16 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
 class RoomServiceTest {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private RoomService roomService;
@@ -107,6 +111,8 @@ class RoomServiceTest {
 
     @Test
     void 기본_스타일이_없으면_방을_만들_수_없다() {
+        // V17 기준 데이터의 기본 벽·바닥을 끈다. 테스트 트랜잭션이 끝나면 되돌아간다
+        jdbcTemplate.update("UPDATE room_style SET status = 'INACTIVE'");
         Member owner = saveMember();
 
         assertThatThrownBy(() ->
@@ -286,6 +292,8 @@ class RoomServiceTest {
     }
 
     private Catalog saveCatalog(boolean configureLast) {
+        // V17 기준 데이터(거울·냉장고)를 빼고 이 테스트가 만든 가구만 활성으로 둔다. 테스트 트랜잭션이 끝나면 되돌아간다
+        jdbcTemplate.update("UPDATE furniture_type SET status = 'INACTIVE'");
         List<FurnitureType> types = new ArrayList<>();
         List<FurnitureVariant> variants = new ArrayList<>();
         List<FurnitureVariant> alternates = new ArrayList<>();
