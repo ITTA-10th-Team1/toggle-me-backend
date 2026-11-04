@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Transactional
 class RoomControllerTest {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private MockMvc mockMvc;
@@ -270,6 +274,8 @@ class RoomControllerTest {
     }
 
     private void saveCatalog() {
+        // V17 기준 데이터(거울·냉장고)를 빼고 이 테스트가 만든 가구만 활성으로 둔다. 테스트 트랜잭션이 끝나면 되돌아간다
+        jdbcTemplate.update("UPDATE furniture_type SET status = 'INACTIVE'");
         furnitureTypes = new ArrayList<>();
         furnitureVariants = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
