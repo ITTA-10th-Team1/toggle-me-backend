@@ -14,4 +14,4 @@ PR 및 병합 전에 확인하는 기준이다. 각 항목의 상세 규칙은 �
 ## 병합 전
 
 - [ ] 리뷰어 1명 이상 승인을 받았다
-- [ ] squash merge로 병합하고, 병합된 브랜치를 삭제한다
+- [ ] `develop` 대상 PR은 squash merge, `develop`→`main` 릴리스 PR은 merge commit으로 병합하고, 병합된 브랜치를 삭제한다

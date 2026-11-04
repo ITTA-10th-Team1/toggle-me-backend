@@ -142,7 +142,7 @@ build: QueryDSL 의존성 추가
 ## PR·병합
 
 - PR은 리뷰어 1명 승인 후 병합한다
-- 병합 방식은 squash merge
+- 병합 방식은 squash merge. 단, `develop`→`main` 릴리스 PR은 merge commit으로 병합한다. squash하면 `main`에 `develop` 커밋이 남지 않아 다음 릴리스에서 모든 변경이 충돌한다
 - 병합된 브랜치는 삭제한다
 - `main`, `develop`에는 직접 push하지 않는다 (`develop`은 GitHub ruleset으로 보호 중)
 - PR 본문은 [PR 템플릿](../.github/pull_request_template.md)을 따른다
