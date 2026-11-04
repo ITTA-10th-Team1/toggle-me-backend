@@ -41,3 +41,7 @@ out/
 
 ### Local ###
 .local/
+
+### AI 도구 ###
+.codex/
+.serena/

@@ -38,6 +38,14 @@ class MemberProfileConcurrencyIntegrationTest {
     @AfterEach
     void cleanUp() {
         for (Long memberId : memberIds) {
+            // 프로필 저장에 성공한 회원은 기본 방이 만들어진다
+            jdbcTemplate.update("delete from room_furniture where floor_id in "
+                            + "(select id from room_floor where room_id in "
+                            + "(select id from room where owner_id = ?))",
+                    memberId);
+            jdbcTemplate.update(
+                    "delete from room_floor where room_id in (select id from room where owner_id = ?)", memberId);
+            jdbcTemplate.update("delete from room where owner_id = ?", memberId);
             jdbcTemplate.update("delete from member where id = ?", memberId);
         }
     }

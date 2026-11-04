@@ -81,7 +81,8 @@ public class MemberService {
 
     @Transactional
     public Member updateProfile(Long memberId, String rawHandle, String rawNickname) {
-        Member member = getMember(memberId);
+        // 프로필 저장과 함께 방을 만들므로 온보딩과 같은 잠금을 건다(동시 요청에 방이 두 개 생기지 않게)
+        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         if (member.isProfileCompleted() && member.isOnboardingCompleted()) {
             throw new MemberOnboardingAlreadyCompletedException();
         }
@@ -103,6 +104,9 @@ public class MemberService {
         } catch (DataIntegrityViolationException e) {
             throw new HandleAlreadyExistsException();
         }
+        // MVP는 가구 선택 단계를 건너뛰고 바로 방을 만든다. 선택 화면이 생기면 이 두 줄을 지운다
+        roomService.createMvpDefaultRoom(member);
+        member.completeOnboarding();
         return member;
     }
 
