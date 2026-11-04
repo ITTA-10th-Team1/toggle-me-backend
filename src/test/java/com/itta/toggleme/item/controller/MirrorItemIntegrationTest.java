@@ -107,11 +107,13 @@ class MirrorItemIntegrationTest {
     }
 
     @Test
-    void 하루에_기록하는_개수에는_제한이_없다() throws Exception {
+    void 거울은_하루_1장까지_기록할_수_있다() throws Exception {
         Member member = saveMemberWithRoom(true);
-        for (int i = 0; i < 11; i++) {
-            create(member, null).andExpect(status().isCreated());
-        }
+        create(member, null).andExpect(status().isCreated());
+
+        create(member, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ITEM_DAILY_LIMIT_EXCEEDED"));
     }
 
     @Test
