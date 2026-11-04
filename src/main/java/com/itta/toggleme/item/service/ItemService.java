@@ -7,6 +7,7 @@ import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
 import com.itta.toggleme.item.dto.ItemUpdateRequest;
+import com.itta.toggleme.item.exception.ItemDailyLimitExceededException;
 import com.itta.toggleme.item.exception.ItemFurnitureNotSelectedException;
 import com.itta.toggleme.item.exception.ItemImageInvalidException;
 import com.itta.toggleme.item.exception.ItemNotFoundException;
@@ -115,8 +116,9 @@ public class ItemService {
 
         requireFurnitureSelected(memberId, furnitureType);
         LocalDate recordedOn = LocalDate.now(SERVICE_ZONE);
+        requireWithinDailyLimit(memberId, furnitureType, recordedOn);
         if (handler != null) {
-            handler.validate(memberId, furnitureType, recordedOn, request);
+            handler.validate(memberId, furnitureType, request);
         }
         if (itemRepository.existsByImageKey(request.imageKey())
                 || !imageService.isUploadedBy(memberId, request.imageKey())) {
@@ -209,6 +211,16 @@ public class ItemService {
             ItemRecordHandler handler = handlers.get(furnitureType.getCode());
             throw handler == null ? new ItemFurnitureNotSelectedException() : handler.furnitureNotSelected();
         }
+    }
+
+    // 가구별 하루 제한(ItemDailyLimit). 카테고리 변경으로 옮겨 오는 기록에는 걸지 않는다
+    private void requireWithinDailyLimit(Long memberId, FurnitureType furnitureType, LocalDate recordedOn) {
+        ItemDailyLimit.of(furnitureType.getCode()).ifPresent(limit -> {
+            if (itemRepository.countByMemberIdAndFurnitureTypeIdAndRecordedOn(
+                    memberId, furnitureType.getId(), recordedOn) >= limit) {
+                throw new ItemDailyLimitExceededException();
+            }
+        });
     }
 
     private Item findMyItem(Long memberId, Long itemId) {
