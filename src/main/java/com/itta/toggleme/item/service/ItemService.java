@@ -33,12 +33,14 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 // 모든 가구의 아이템 등록·조회·수정·삭제가 거치는 곳. 가구별 규칙은 ItemRecordHandler로 분기한다
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 public class ItemService {
@@ -181,7 +183,13 @@ public class ItemService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                imageService.delete(imageKey);
+                // DB는 이미 지워졌으므로 S3 삭제가 실패해도 오류로 응답하지 않는다(앱이 재시도하면 404가 된다).
+                // 사진 키는 로그에 남기지 않는다
+                try {
+                    imageService.delete(imageKey);
+                } catch (RuntimeException e) {
+                    log.warn("Item image delete failed: {}", e.getClass().getSimpleName());
+                }
             }
         });
     }
