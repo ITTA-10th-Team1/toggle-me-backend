@@ -319,6 +319,43 @@ class ItemControllerTest {
     }
 
     @Test
+    void 내_기록_전체를_모든_가구와_날짜에서_최신순과_오래된_순으로_조회한다() throws Exception {
+        Member me = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        FurnitureType otherType = furnitureTypeRepository.findById(placedTypeIds.get(1)).orElseThrow();
+        Item oldest = saveItem(me, TODAY.minusDays(30));
+        Item hidden = itemRepository.save(Item.record(me, otherType, TODAY.minusDays(1), imageKey(me), null,
+                ItemVisibility.PRIVATE));
+        Item latest = saveItem(me, TODAY);
+        saveItem(other, TODAY);
+
+        mockMvc.perform(get("/api/v1/items/all").header("Authorization", bearer(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].id").value(latest.getId()))
+                .andExpect(jsonPath("$[1].id").value(hidden.getId()))
+                .andExpect(jsonPath("$[2].id").value(oldest.getId()));
+        mockMvc.perform(get("/api/v1/items/all").header("Authorization", bearer(me)).param("sort", "OLDEST"))
+                .andExpect(jsonPath("$[0].id").value(oldest.getId()))
+                .andExpect(jsonPath("$[2].id").value(latest.getId()));
+        mockMvc.perform(get("/api/v1/items/all").header("Authorization", bearer(me))
+                        .param("cursor", hidden.getId().toString()))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(oldest.getId()));
+        mockMvc.perform(get("/api/v1/items/all").header("Authorization", bearer(me))
+                        .param("sort", "OLDEST").param("cursor", hidden.getId().toString()))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(latest.getId()));
+    }
+
+    @Test
+    void 내_기록_전체_조회의_정렬값이_잘못되면_400을_반환한다() throws Exception {
+        Member me = saveMemberWithRoom(true);
+        mockMvc.perform(get("/api/v1/items/all").header("Authorization", bearer(me)).param("sort", "RANDOM"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 없는_가구_종류로_조회하면_404를_반환한다() throws Exception {
         Member member = saveMemberWithRoom(false);
 
