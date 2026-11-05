@@ -10,7 +10,7 @@ import com.itta.toggleme.room.domain.FurnitureType;
  * 가구에 고유 규칙이 생기면(예: 책은 도서 정보 필수) 이 인터페이스를 구현한 빈을 하나 추가한다.
  *
  * <p>공통 규칙(ItemService): 회원 잠금, 방에 켜진 가구인지, 등록일은 서비스 기준 오늘로 자동 기록(PRD ARCH-05),
- * 이미지가 본인 업로드이고 아직 쓰이지 않았는지, 태그 0~3개, 가구별 하루 등록 개수 제한(ItemDailyLimit, 예: 냉장고 하루 1장).
+ * 이미지가 본인 업로드이고 아직 쓰이지 않았는지, 태그 0~3개, 가구별 하루 등록 개수 제한(ItemDailyLimit, 예: 냉장고 하루 10장).
  * 개수 제한은 핸들러가 아니라 그 표에서 관리한다.
  */
 public interface ItemRecordHandler {
