@@ -3,6 +3,7 @@ package com.itta.toggleme.item.service;
 import com.itta.toggleme.image.service.ImageService;
 import com.itta.toggleme.item.domain.Item;
 import com.itta.toggleme.item.domain.ItemTag;
+import com.itta.toggleme.item.domain.ItemSort;
 import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
@@ -79,21 +80,21 @@ public class ItemService {
                 .collect(Collectors.toMap(ItemRecordHandler::furnitureCode, Function.identity()));
     }
 
+    // 내 기록 전체, 20개씩. 다음 쪽은 받은 마지막 id를 cursor로 보낸다. 등록일은 항상 올린 날이라 id 순서가 날짜 순서다
+    public List<ItemResponse> getAll(Long memberId, ItemSort sort, Long cursor) {
+        Limit limit = Limit.of(ROOM_ITEMS_PAGE_SIZE);
+        return toResponses(sort == ItemSort.OLDEST
+                ? itemRepository.findMyItemsOldest(memberId, cursor, limit)
+                : itemRepository.findMyItemsLatest(memberId, cursor, limit));
+    }
+
     // 방에서 가구를 눌렀을 때 보는 기록. 꺼진 가구는 404. 주인이 아니면 공개 기록만
     public List<ItemResponse> getRoomItems(Long ownerId, boolean includePrivate, Long furnitureTypeId, Long before) {
         if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(ownerId, RoomStatus.ACTIVE, furnitureTypeId)) {
             throw new FurnitureTypeNotFoundException();
         }
-        List<Item> items = itemRepository.findRoomItems(
-                ownerId, furnitureTypeId, includePrivate, before, Limit.of(ROOM_ITEMS_PAGE_SIZE));
-        Map<Long, List<String>> tagsByItem = itemTagRepository
-                .findAllByItemIdInOrderByPosition(items.stream().map(Item::getId).toList()).stream()
-                .collect(Collectors.groupingBy(tag -> tag.getItem().getId(),
-                        Collectors.mapping(ItemTag::getName, Collectors.toList())));
-        return items.stream()
-                .map(item -> ItemResponse.from(item, imageService.createViewUrl(item.getImageKey()),
-                        tagsByItem.getOrDefault(item.getId(), List.of())))
-                .toList();
+        return toResponses(itemRepository.findRoomItems(
+                ownerId, furnitureTypeId, includePrivate, before, Limit.of(ROOM_ITEMS_PAGE_SIZE)));
     }
 
     @Transactional
