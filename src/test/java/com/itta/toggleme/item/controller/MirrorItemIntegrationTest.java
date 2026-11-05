@@ -107,9 +107,11 @@ class MirrorItemIntegrationTest {
     }
 
     @Test
-    void 거울은_하루_1장까지_기록할_수_있다() throws Exception {
+    void 거울은_하루_10장까지_기록할_수_있다() throws Exception {
         Member member = saveMemberWithRoom(true);
-        create(member, null).andExpect(status().isCreated());
+        for (int i = 0; i < 10; i++) {
+            create(member, null).andExpect(status().isCreated());
+        }
 
         create(member, null)
                 .andExpect(status().isConflict())

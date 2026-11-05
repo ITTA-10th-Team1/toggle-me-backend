@@ -146,11 +146,13 @@ class ItemControllerTest {
     }
 
     @Test
-    void 냉장고는_하루_1장까지_기록할_수_있다() throws Exception {
+    void 냉장고는_하루_10장까지_기록할_수_있다() throws Exception {
         Member member = saveMemberWithRoom(true);
-        create(member, imageKey(member), fridgeTypeId, null)
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+        for (int i = 0; i < 10; i++) {
+            create(member, imageKey(member), fridgeTypeId, null)
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.recordedOn").value(TODAY.toString()));
+        }
 
         create(member, imageKey(member), fridgeTypeId, null)
                 .andExpect(status().isConflict())
@@ -158,7 +160,7 @@ class ItemControllerTest {
     }
 
     @Test
-    void 냉장고_하루_1장_제한은_회원과_날짜별로_센다() throws Exception {
+    void 냉장고_하루_10장_제한은_회원과_날짜별로_센다() throws Exception {
         Member member = saveMemberWithRoom(true);
         Member other = saveMemberWithRoom(true);
         // 어제 기록은 오늘 제한에 걸리지 않는다
