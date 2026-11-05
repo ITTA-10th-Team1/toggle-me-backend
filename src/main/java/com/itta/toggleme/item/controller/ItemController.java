@@ -1,5 +1,6 @@
 package com.itta.toggleme.item.controller;
 
+import com.itta.toggleme.item.domain.ItemSort;
 import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
@@ -63,6 +64,16 @@ public class ItemController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month
     ) {
         return ResponseEntity.ok(itemService.getCalendar(memberId(jwt), furnitureTypeId, month));
+    }
+
+    @Operation(summary = "내 기록 전체 조회 (모든 가구·모든 날짜, 20개씩. sort=LATEST|OLDEST, 다음 쪽은 마지막 id를 cursor로)")
+    @GetMapping("/all")
+    public ResponseEntity<List<ItemResponse>> getAll(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "LATEST") ItemSort sort,
+            @RequestParam(required = false) Long cursor
+    ) {
+        return ResponseEntity.ok(itemService.getAll(memberId(jwt), sort, cursor));
     }
 
     @Operation(summary = "기록 상세 조회 (본인 기록)")

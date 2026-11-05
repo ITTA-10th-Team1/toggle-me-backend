@@ -45,4 +45,19 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
             @Param("before") Long before,
             Limit limit
     );
+
+    // 내 기록 전체(모든 가구·모든 날짜). 최신순은 cursor보다 작은 id부터, 오래된 순은 큰 id부터
+    @Query("""
+            select item from Item item
+            where item.member.id = :memberId and (:cursor is null or item.id < :cursor)
+            order by item.id desc
+            """)
+    List<Item> findMyItemsLatest(@Param("memberId") Long memberId, @Param("cursor") Long cursor, Limit limit);
+
+    @Query("""
+            select item from Item item
+            where item.member.id = :memberId and (:cursor is null or item.id > :cursor)
+            order by item.id asc
+            """)
+    List<Item> findMyItemsOldest(@Param("memberId") Long memberId, @Param("cursor") Long cursor, Limit limit);
 }
