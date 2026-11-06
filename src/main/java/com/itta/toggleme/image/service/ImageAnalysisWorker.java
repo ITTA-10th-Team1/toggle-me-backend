@@ -26,6 +26,7 @@ public class ImageAnalysisWorker {
             사진 속 대상의 색상, 분위기, 스타일, 종류·대상을 보고 기록에 붙일 한국어 태그 3개를 만든다.
             - 각 태그는 #으로 시작하고 15자 이내
             - 사진에서 알아볼 수 있는 구체적인 특징을 우선한다 (예: 책이면 장르·작가, 음식이면 메뉴)
+            - searchQueries는 아래에 따로 지시하지 않으면 빈 목록으로 둔다
             """;
 
     private final ChatClient chatClient;
@@ -77,7 +78,11 @@ public class ImageAnalysisWorker {
                 log.warn("Image analysis {} failed: empty result", analysisId);
                 analysis.fail();
             } else {
-                analysis.complete(result);
+                // 검색어는 거울에서만 쓴다. 다른 가구는 모델이 채워도 버린다
+                FurnitureType furnitureType = analysis.getFurnitureType();
+                boolean keepsSearchQueries = furnitureType != null
+                        && FurnitureTagGuide.createsSearchQueries(furnitureType.getCode());
+                analysis.complete(keepsSearchQueries ? result : result.withoutSearchQueries());
             }
         } catch (RuntimeException | MalformedURLException e) {
             log.warn("Image analysis {} failed: {}", analysisId, e.getClass().getSimpleName());

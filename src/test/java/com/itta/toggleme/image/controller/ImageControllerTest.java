@@ -87,9 +87,22 @@ class ImageControllerTest {
     }
 
     @Test
+    void 완료된_분석은_쇼핑몰_검색어도_반환한다() throws Exception {
+        given(imageAnalysisService.getAnalysis(MEMBER_ID, 1L)).willReturn(new ImageAnalysisResponse(
+                1L, ImageAnalysisStatus.COMPLETED,
+                new ImageAnalysisResult(List.of("#데일리"), List.of("가을 베이지 트렌치코트", "검정 와이드 슬랙스"))));
+
+        mockMvc.perform(get("/api/v1/images/analysis/1")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(MEMBER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.searchQueries[0]").value("가을 베이지 트렌치코트"))
+                .andExpect(jsonPath("$.result.searchQueries[1]").value("검정 와이드 슬랙스"));
+    }
+
+    @Test
     void 완료된_분석은_추천_태그를_반환한다() throws Exception {
         given(imageAnalysisService.getAnalysis(MEMBER_ID, 1L)).willReturn(new ImageAnalysisResponse(
-                1L, ImageAnalysisStatus.COMPLETED, new ImageAnalysisResult(List.of("#추리", "#외국소설"))));
+                1L, ImageAnalysisStatus.COMPLETED, new ImageAnalysisResult(List.of("#추리", "#외국소설"), List.of())));
 
         mockMvc.perform(get("/api/v1/images/analysis/1")
                         .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(MEMBER_ID)))

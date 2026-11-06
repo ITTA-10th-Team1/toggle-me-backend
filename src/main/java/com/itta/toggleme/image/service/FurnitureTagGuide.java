@@ -11,10 +11,18 @@ public final class FurnitureTagGuide {
 
     private static final Map<String, String> GUIDES = Map.of(
             "fridge", "냉장고에 기록하는 음식 사진이다. 사진 속 음식에 집중해 메뉴, 주재료, 맛이나 식사 분위기를 태그로 만든다.",
-            "mirror", "거울에 기록하는 착장 사진이다. 입은 옷에 집중해 옷의 종류, 색, 스타일, 어울리는 상황을 태그로 만든다."
+            "mirror", "거울에 기록하는 착장 사진이다. 입은 옷에 집중해 옷의 종류, 색, 스타일, 어울리는 상황을 태그로 만든다.\n"
+                    + "또한 이 착장과 비슷한 옷을 쇼핑몰에서 찾을 검색어를 searchQueries에 2~3개 만든다. "
+                    + "계절, 색, 핏, 옷 종류 순서의 짧은 한국어로 쓰고(예: 가을 베이지 오버핏 트렌치코트), "
+                    + "각 검색어는 20자 이내, 브랜드명과 #은 쓰지 않는다."
     );
 
     private FurnitureTagGuide() {
+    }
+
+    // 쇼핑몰 검색어(searchQueries)는 거울에서만 만든다
+    public static boolean createsSearchQueries(String furnitureCode) {
+        return "mirror".equals(furnitureCode);
     }
 
     public static Optional<String> forCode(String furnitureCode) {

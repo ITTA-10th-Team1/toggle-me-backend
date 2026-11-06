@@ -13,6 +13,7 @@ import com.itta.toggleme.image.domain.ImageAnalysisStatus;
 import com.itta.toggleme.image.repository.ImageAnalysisRepository;
 import com.itta.toggleme.room.domain.FurnitureType;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,42 @@ class ImageAnalysisWorkerTest {
 
         assertThat(prompt).contains("태그 3개").contains("음식에 집중");
         assertThat(ImageAnalysisWorker.promptFor(FurnitureType.create("mirror", "거울", 2))).contains("입은 옷에 집중");
+    }
+
+    @Test
+    void 거울_지침에는_검색어_규칙이_있고_다른_가구에는_없다() {
+        String mirror = ImageAnalysisWorker.promptFor(FurnitureType.create("mirror", "거울", 2));
+
+        assertThat(mirror).contains("searchQueries").contains("계절, 색, 핏, 옷 종류 순서").contains("브랜드명").contains("20자 이내");
+        assertThat(ImageAnalysisWorker.promptFor(FurnitureType.create("fridge", "냉장고", 1))).doesNotContain("쇼핑몰");
+    }
+
+    @Test
+    void 검색어는_거울에서만_저장하고_다른_가구는_버린다() {
+        ImageAnalysisResult modelOutput = new ImageAnalysisResult(List.of("#데일리"), List.of("가을 베이지 코트"));
+
+        assertThat(analyzeWith("mirror", modelOutput).searchQueries()).containsExactly("가을 베이지 코트");
+        assertThat(analyzeWith("fridge", modelOutput).searchQueries()).isEmpty();
+        assertThat(analyzeWith("fridge", modelOutput).tags()).containsExactly("#데일리");
+        assertThat(analyzeWith(null, modelOutput).searchQueries()).isEmpty();
+    }
+
+    private ImageAnalysisResult analyzeWith(String furnitureCode, ImageAnalysisResult modelOutput) {
+        ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        ChatClient.Builder builder = mock(ChatClient.Builder.class);
+        given(builder.build()).willReturn(chatClient);
+        given(chatClient.prompt().user(any(Consumer.class)).call().entity(ImageAnalysisResult.class)).willReturn(modelOutput);
+        ImageAnalysisWorker worker = new ImageAnalysisWorker(builder, imageService, imageAnalysisRepository);
+        FurnitureType furnitureType = furnitureCode == null ? null : FurnitureType.create(furnitureCode, "가구", 1);
+        ImageAnalysis analysis = ImageAnalysis.request(null, "images/7/a.jpg", furnitureType);
+        ReflectionTestUtils.setField(analysis, "createdAt", Instant.now());
+        given(imageAnalysisRepository.findByIdWithFurnitureType(1L)).willReturn(Optional.of(analysis));
+        given(imageService.createViewUrl("images/7/a.jpg")).willReturn("https://view/images/7/a.jpg");
+
+        worker.analyze(1L);
+
+        assertThat(analysis.getStatus()).isEqualTo(ImageAnalysisStatus.COMPLETED);
+        return analysis.getResult();
     }
 
     @Test
