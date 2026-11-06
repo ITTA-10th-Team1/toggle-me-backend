@@ -1,5 +1,7 @@
 package com.itta.toggleme.image.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Objects;
 
@@ -31,6 +33,19 @@ public record ImageAnalysisResult(List<String> tags, List<String> searchQueries)
                 .distinct()
                 .limit(MAX_SEARCH_QUERIES)
                 .toList();
+    }
+
+    // 모델이 searchQueries를 배열이 아닌 문자열·객체로 주면 변환 예외로 분석 전체가 실패한다.
+    // 검색어는 덤이라 형식이 틀리면 빈 목록으로 두고 태그는 살린다
+    @JsonCreator
+    static ImageAnalysisResult fromJson(
+            @JsonProperty("tags") List<String> tags,
+            @JsonProperty("searchQueries") Object searchQueries
+    ) {
+        List<String> queries = searchQueries instanceof List<?> list
+                ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList()
+                : List.of();
+        return new ImageAnalysisResult(tags, queries);
     }
 
     public ImageAnalysisResult withoutSearchQueries() {
