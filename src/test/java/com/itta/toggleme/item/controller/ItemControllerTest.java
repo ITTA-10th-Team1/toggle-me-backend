@@ -13,11 +13,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.itta.toggleme.global.security.JwtTokenProvider;
+import com.itta.toggleme.item.client.NaverImageClient;
 import com.itta.toggleme.item.domain.Item;
 import com.itta.toggleme.item.domain.ItemTag;
 import com.itta.toggleme.item.domain.ItemVisibility;
 import com.itta.toggleme.item.repository.ItemRepository;
 import com.itta.toggleme.item.repository.ItemTagRepository;
+import com.itta.toggleme.item.service.FoodRecommender;
 import jakarta.persistence.EntityManager;
 import com.itta.toggleme.image.service.ImageService;
 import com.itta.toggleme.member.domain.Member;
@@ -37,6 +39,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,6 +91,12 @@ class ItemControllerTest {
 
     @MockitoBean
     private ImageService imageService;
+
+    @MockitoBean
+    private FoodRecommender foodRecommender;
+
+    @MockitoBean
+    private NaverImageClient naverImageClient;
 
     private Long fridgeTypeId;
     private Long fridgeVariantId;
@@ -533,6 +542,73 @@ class ItemControllerTest {
 
     private String imageKey(Member member) {
         return "images/" + member.getId() + "/" + UUID.randomUUID() + ".jpg";
+    }
+
+    @Test
+    void 냉장고_기록은_태그로_비슷한_음식_이름과_사진을_추천받는다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Long itemId = createFridgeItemWithTags(member);
+        given(foodRecommender.recommend(List.of("파스타", "토마토"))).willReturn(List.of("리조또", "뇨끼"));
+        given(naverImageClient.findImageUrl("리조또")).willReturn(Optional.of("https://img/1.jpg"));
+        given(naverImageClient.findImageUrl("뇨끼")).willReturn(Optional.empty());
+
+        recommend(member, itemId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("리조또"))
+                .andExpect(jsonPath("$[0].imageUrl").value("https://img/1.jpg"));
+    }
+
+    @Test
+    void 냉장고가_아닌_기록이나_태그_없는_기록은_추천받을_수_없다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Long otherFurnitureItemId = createAndGetId(member, placedTypeIds.get(1));
+        Long noTagFridgeItemId = saveItem(member, TODAY.minusDays(1)).getId();
+
+        recommend(member, otherFurnitureItemId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_RECOMMENDATION_UNSUPPORTED"));
+        recommend(member, noTagFridgeItemId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_RECOMMENDATION_TAG_REQUIRED"));
+    }
+
+    @Test
+    void 남의_기록은_추천받을_수_없다() throws Exception {
+        Member owner = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        Long itemId = createFridgeItemWithTags(owner);
+
+        recommend(other, itemId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_FOUND"));
+    }
+
+    @Test
+    void 추천은_회원당_하루_10회까지다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        Long itemId = createFridgeItemWithTags(member);
+        given(foodRecommender.recommend(List.of("파스타", "토마토"))).willReturn(List.of("리조또"));
+        given(naverImageClient.findImageUrl("리조또")).willReturn(Optional.of("https://img/1.jpg"));
+
+        for (int i = 0; i < 10; i++) {
+            recommend(member, itemId).andExpect(status().isOk());
+        }
+        recommend(member, itemId)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("ITEM_RECOMMENDATION_LIMIT_EXCEEDED"));
+    }
+
+    private Long createFridgeItemWithTags(Member member) throws Exception {
+        String body = create(member, imageKey(member), fridgeTypeId, TODAY, "[\"파스타\",\"토마토\"]")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return Long.valueOf(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+    }
+
+    private ResultActions recommend(Member member, Long itemId) throws Exception {
+        return mockMvc.perform(post("/api/v1/items/" + itemId + "/recommendations")
+                .header("Authorization", bearer(member)));
     }
 
     private Member saveMemberWithRoom(boolean withFridge) {

@@ -170,6 +170,15 @@ public class ItemService {
         return toResponses(List.of(findMyItem(memberId, itemId))).getFirst();
     }
 
+    // AI 추천용으로 본인 기록의 가구와 태그만 읽는다(트랜잭션은 여기서 끝난다)
+    public ItemRecommendationSource getRecommendationSource(Long memberId, Long itemId) {
+        Item item = findMyItem(memberId, itemId);
+        List<String> tags = itemTagRepository.findAllByItemIdOrderByPosition(item.getId()).stream()
+                .map(ItemTag::getName)
+                .toList();
+        return new ItemRecommendationSource(item.getFurnitureType().getCode(), tags);
+    }
+
     // 메모·공개 여부·카테고리를 바꾼다. 등록일·사진·태그는 바꾸지 않는다
     @Transactional
     public ItemResponse update(Long memberId, Long itemId, ItemUpdateRequest request) {

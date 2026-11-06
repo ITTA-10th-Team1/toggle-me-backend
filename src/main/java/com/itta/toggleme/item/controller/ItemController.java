@@ -1,10 +1,12 @@
 package com.itta.toggleme.item.controller;
 
 import com.itta.toggleme.item.domain.ItemSort;
+import com.itta.toggleme.item.dto.FoodRecommendationResponse;
 import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
 import com.itta.toggleme.item.dto.ItemUpdateRequest;
+import com.itta.toggleme.item.service.ItemRecommendationService;
 import com.itta.toggleme.item.service.ItemService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ItemController {
 
     private final ItemService itemService;
+    private final ItemRecommendationService itemRecommendationService;
 
     @Operation(summary = "③ 아이템 기록 저장 (모든 가구 공통, 태그 0~3개)")
     @PostMapping
@@ -80,6 +83,15 @@ public class ItemController {
     @GetMapping("/{itemId}")
     public ResponseEntity<ItemResponse> getDetail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long itemId) {
         return ResponseEntity.ok(itemService.getDetail(memberId(jwt), itemId));
+    }
+
+    @Operation(summary = "냉장고 기록 AI 추천 (태그와 비슷한 음식 이름·사진, 저장 안 함, 회원당 하루 10회)")
+    @PostMapping("/{itemId}/recommendations")
+    public ResponseEntity<List<FoodRecommendationResponse>> recommend(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long itemId
+    ) {
+        return ResponseEntity.ok(itemRecommendationService.recommend(memberId(jwt), itemId));
     }
 
     @Operation(summary = "기록 수정 (보낸 값만 바꿈, 메모는 빈 문자열이면 삭제, 가구 이동 가능, 등록 날짜는 유지)")
