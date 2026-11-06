@@ -1,12 +1,14 @@
 package com.itta.toggleme.item.service;
 
 import com.itta.toggleme.item.client.NaverImageClient;
+import com.itta.toggleme.item.client.NaverSearchException;
 import com.itta.toggleme.item.dto.FoodRecommendationResponse;
 import com.itta.toggleme.item.exception.ItemRecommendationFailedException;
 import com.itta.toggleme.item.exception.ItemRecommendationTagRequiredException;
 import com.itta.toggleme.item.exception.ItemRecommendationUnsupportedException;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,22 +37,37 @@ public class ItemRecommendationService {
         if (source.tags().isEmpty()) {
             throw new ItemRecommendationTagRequiredException();
         }
-        limiter.acquire(memberId);
+        LocalDate acquiredOn = limiter.acquire(memberId);
         try {
             List<String> foods = foodRecommender.recommend(source.tags());
             if (foods.isEmpty()) {
                 throw new IllegalStateException("empty recommendation");
             }
-            return foods.stream()
-                    .map(name -> naverImageClient.findImageUrl(name)
-                            .map(url -> new FoodRecommendationResponse(name, url)))
-                    .flatMap(Optional::stream)
-                    .toList();
+            return findImages(foods);
         } catch (RuntimeException e) {
-            // 우리 쪽 실패로 횟수를 잃지 않게 돌려준다
-            limiter.release(memberId);
+            // 우리 쪽 실패로 횟수를 잃지 않게, 요청을 시작한 날짜의 횟수를 돌려준다
+            limiter.release(memberId, acquiredOn);
             log.warn("Food recommendation failed: {}", e.getClass().getSimpleName());
             throw new ItemRecommendationFailedException();
         }
+    }
+
+    // 검색 결과가 없는 음식은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
+    // 모든 검색이 장애로 실패하면(예: 키 누락) 빈 목록 대신 실패로 알린다
+    private List<FoodRecommendationResponse> findImages(List<String> foods) {
+        List<FoodRecommendationResponse> found = new ArrayList<>();
+        int failures = 0;
+        for (String name : foods) {
+            try {
+                naverImageClient.findImageUrl(name)
+                        .ifPresent(url -> found.add(new FoodRecommendationResponse(name, url)));
+            } catch (NaverSearchException e) {
+                failures++;
+            }
+        }
+        if (failures == foods.size()) {
+            throw new IllegalStateException("all image searches failed");
+        }
+        return found;
     }
 }

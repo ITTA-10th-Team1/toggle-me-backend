@@ -31,8 +31,8 @@ public class ItemRecommendationLimiter {
         this.clock = clock;
     }
 
-    // 횟수를 하나 쓴다. 한도를 넘으면 예외
-    public void acquire(Long memberId) {
+    // 횟수를 하나 쓰고, 쓴 날짜를 돌려준다. 한도를 넘으면 예외
+    public LocalDate acquire(Long memberId) {
         LocalDate today = LocalDate.now(clock);
         boolean[] exceeded = {false};
         usages.compute(memberId, (id, usage) -> {
@@ -46,12 +46,15 @@ public class ItemRecommendationLimiter {
         if (exceeded[0]) {
             throw new ItemRecommendationLimitExceededException();
         }
+        return today;
     }
 
-    // AI나 검색이 실패했을 때 쓴 횟수를 돌려준다
-    public void release(Long memberId) {
-        LocalDate today = LocalDate.now(clock);
+    // AI나 검색이 실패했을 때 쓴 횟수를 돌려준다. 요청을 시작한 날짜의 횟수만 돌려주므로,
+    // 자정을 넘겨 실패해도 새 날짜의 횟수에는 영향이 없다
+    public void release(Long memberId, LocalDate acquiredOn) {
         usages.computeIfPresent(memberId, (id, usage) ->
-                usage.date().equals(today) && usage.count() > 0 ? new Usage(today, usage.count() - 1) : usage);
+                usage.date().equals(acquiredOn) && usage.count() > 0
+                        ? new Usage(acquiredOn, usage.count() - 1)
+                        : usage);
     }
 }

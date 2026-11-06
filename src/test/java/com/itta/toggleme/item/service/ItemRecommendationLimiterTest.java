@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.itta.toggleme.item.exception.ItemRecommendationLimitExceededException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -63,11 +64,24 @@ class ItemRecommendationLimiterTest {
     }
 
     @Test
+    void 자정을_넘겨_실패해도_새_날짜의_횟수는_돌려주지_않는다() {
+        LocalDate startedOn = limiter.acquire(1L);
+        now.set(Instant.parse("2026-11-06T15:00:00Z"));
+        for (int i = 0; i < ItemRecommendationLimiter.DAILY_LIMIT; i++) {
+            limiter.acquire(1L);
+        }
+
+        limiter.release(1L, startedOn);
+
+        assertThatThrownBy(() -> limiter.acquire(1L)).isInstanceOf(ItemRecommendationLimitExceededException.class);
+    }
+
+    @Test
     void 돌려준_횟수는_다시_쓸_수_있다() {
         for (int i = 0; i < ItemRecommendationLimiter.DAILY_LIMIT; i++) {
             limiter.acquire(1L);
         }
-        limiter.release(1L);
+        limiter.release(1L, LocalDate.of(2026, 11, 6));
 
         assertThatCode(() -> limiter.acquire(1L)).doesNotThrowAnyException();
         assertThatThrownBy(() -> limiter.acquire(1L)).isInstanceOf(ItemRecommendationLimitExceededException.class);

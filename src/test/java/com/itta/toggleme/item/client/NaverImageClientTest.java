@@ -1,6 +1,7 @@
 package com.itta.toggleme.item.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -38,10 +39,10 @@ class NaverImageClientTest {
     }
 
     @Test
-    void 호출이_실패하면_예외_대신_빈_값이다() {
+    void 호출_자체가_실패하면_결과_없음과_구분해_예외를_던진다() {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://naverapihub.apigw.ntruss.com/")))
                 .andRespond(withServerError());
 
-        assertThat(client.findImageUrl("파스타")).isEmpty();
+        assertThatThrownBy(() -> client.findImageUrl("파스타")).isInstanceOf(NaverSearchException.class);
     }
 }

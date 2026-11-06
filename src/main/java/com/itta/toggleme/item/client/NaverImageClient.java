@@ -13,8 +13,9 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * NAVER API HUB 검색 API(이미지)로 음식 이름의 대표 사진 주소를 찾는다. 실패는 "사진 없음"으로 돌려준다.
- * 추천 한 건이 실패해도 나머지 추천은 보여 주기 위해서다.
+ * NAVER API HUB 검색 API(이미지)로 음식 이름의 대표 사진 주소를 찾는다.
+ * 검색 결과가 없으면 빈 값이고, 호출 자체가 실패하면 {@link NaverSearchException}을 던진다.
+ * 호출한 쪽이 "결과 없음"과 "장애"를 구분해 횟수 차감과 안내를 정한다.
  */
 @Slf4j
 @Component
@@ -50,7 +51,7 @@ public class NaverImageClient {
         return requestFactory;
     }
 
-    // 결과 중 첫 번째 썸네일 주소. 검색 결과가 없거나 호출이 실패하면 비어 있다
+    // 결과 중 첫 번째 썸네일 주소. 검색 결과가 없으면 비어 있다
     public Optional<String> findImageUrl(String query) {
         try {
             // 응답이 JSON인데 Content-Type이 text/plain이라 자동 변환이 거부한다. 문자열로 받아 직접 읽는다
@@ -73,7 +74,7 @@ public class NaverImageClient {
         } catch (RuntimeException e) {
             // 검색어는 로그에 남기지 않는다
             log.warn("Naver image search failed: {}", e.getClass().getSimpleName());
-            return Optional.empty();
+            throw new NaverSearchException(e);
         }
     }
 
