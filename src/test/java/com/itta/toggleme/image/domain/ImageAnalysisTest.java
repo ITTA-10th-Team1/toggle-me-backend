@@ -22,7 +22,7 @@ class ImageAnalysisTest {
     @Test
     void 완료된_분석은_시간이_지나도_완료다() {
         ImageAnalysis analysis = requestedAt(CREATED_AT);
-        analysis.complete(new ImageAnalysisResult(List.of("#추리")));
+        analysis.complete(new ImageAnalysisResult(List.of("#추리"), List.of()));
 
         assertThat(analysis.currentStatus(CREATED_AT.plusSeconds(3600))).isEqualTo(ImageAnalysisStatus.COMPLETED);
     }

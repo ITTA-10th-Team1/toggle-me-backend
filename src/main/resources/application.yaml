@@ -40,6 +40,11 @@ jwt:
 kakao:
   app-id: ${KAKAO_APP_ID:}
 
+naver:
+  # NAVER API HUB 검색 API (냉장고 AI 추천의 음식 사진 검색)
+  client-id: ${NAVER_CLIENT_ID:}
+  client-secret: ${NAVER_CLIENT_SECRET:}
+
 aws:
   s3:
     region: ${AWS_REGION:ap-northeast-2}
