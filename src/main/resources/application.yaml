@@ -10,9 +10,9 @@ spring:
         chat:
           options:
             model: gemini-3.1-flash-lite
-    # 기본값(10회, 최대 수 분 대기)이면 Gemini 장애 시 분석 작업 스레드가 오래 묶인다
+    # 재시도는 Gemini SDK 한 곳에서만 한다(GeminiConfig). 이 값은 재시도 횟수라 2면 SDK 재시도와 곱해져 호출이 늘어난다
     retry:
-      max-attempts: 2
+      max-attempts: 0
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:toggleme}
     username: ${DB_USERNAME}
