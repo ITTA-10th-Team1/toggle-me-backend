@@ -9,8 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class ImageAnalysisConfig {
 
     private static final int QUEUE_CAPACITY = 100;
-    // ponytail: Gemini 호출 자체의 timeout은 없다. Client를 직접 만들어 timeout을 주면 API 키 인증이 실패해서 뺐다.
-    // 앱에는 ImageAnalysis의 60초 만료로 결과를 보장한다. 호출이 오래 묶여 대기열이 밀리면 timeout 방법을 다시 찾는다
+    // Gemini 호출은 GeminiConfig에서 시도마다 20초로 끊는다. 앱은 ImageAnalysis의 60초 만료로 결과를 보장한다
 
     // JPEG·PNG는 Gemini가 presigned URL로 직접 읽는다. 서버 heap을 거의 쓰지 않아 여러 건을 함께 처리한다
     @Bean
