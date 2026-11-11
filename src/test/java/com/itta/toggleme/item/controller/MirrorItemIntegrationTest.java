@@ -1,5 +1,6 @@
 package com.itta.toggleme.item.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -22,6 +23,8 @@ import com.itta.toggleme.room.repository.FurnitureTypeRepository;
 import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.JsonPath;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -138,6 +141,73 @@ class MirrorItemIntegrationTest {
                         .param("date", TODAY.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void 가구별_피드는_최신순이고_cursor로_다음_쪽을_준다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        for (int i = 0; i < 3; i++) {
+            create(member, null).andExpect(status().isCreated());
+        }
+
+        String first = feed(member, mirrorTypeId, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andReturn().getResponse().getContentAsString();
+        List<Number> ids = JsonPath.read(first, "$[*].id");
+        assertThat(ids.get(0).longValue()).isGreaterThan(ids.get(1).longValue());
+
+        feed(member, mirrorTypeId, ids.get(1).longValue())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(ids.get(2).longValue()));
+    }
+
+    @Test
+    void 피드에는_다른_회원의_기록이_나오지_않는다() throws Exception {
+        Member owner = saveMemberWithRoom(true);
+        Member other = saveMemberWithRoom(true);
+        create(owner, null).andExpect(status().isCreated());
+
+        feed(other, mirrorTypeId, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void 피드는_sort가_OLDEST면_오래된_순으로_준다() throws Exception {
+        Member member = saveMemberWithRoom(true);
+        for (int i = 0; i < 3; i++) {
+            create(member, null).andExpect(status().isCreated());
+        }
+
+        String body = mockMvc.perform(get("/api/v1/items/feed")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(member.getId()))
+                        .param("furnitureTypeId", mirrorTypeId.toString())
+                        .param("sort", "OLDEST"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<Number> ids = JsonPath.read(body, "$[*].id");
+        assertThat(ids).hasSize(3);
+        assertThat(ids.get(0).longValue()).isLessThan(ids.get(1).longValue());
+    }
+
+    @Test
+    void 방에서_꺼진_가구의_피드는_404를_반환한다() throws Exception {
+        Member member = saveMemberWithRoom(false);
+
+        feed(member, mirrorTypeId, null)
+                .andExpect(status().isNotFound());
+    }
+
+    private ResultActions feed(Member member, Long furnitureTypeId, Long cursor) throws Exception {
+        var request = get("/api/v1/items/feed")
+                .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(member.getId()))
+                .param("furnitureTypeId", furnitureTypeId.toString());
+        if (cursor != null) {
+            request.param("cursor", cursor.toString());
+        }
+        return mockMvc.perform(request);
     }
 
     private ResultActions create(Member member, LocalDate recordedOn) throws Exception {
