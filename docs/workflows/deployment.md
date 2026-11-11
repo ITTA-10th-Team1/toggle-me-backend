@@ -23,6 +23,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 
 | 키 | 필수 | 설명 |
 | --- | --- | --- |
+| `DB_HOST` | 선택 | 기본 `mysql`(같은 compose의 mysql 컨테이너). RDS를 쓰면 RDS 엔드포인트 |
 | `DB_NAME` | 선택 | 기본 `toggleme` |
 | `DB_USERNAME`, `DB_PASSWORD` | 필수 | 앱용 DB 계정 |
 | `DB_ROOT_PASSWORD` | 필수 | mysql 컨테이너만 받는다 |
