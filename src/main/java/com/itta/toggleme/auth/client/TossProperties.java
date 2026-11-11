@@ -6,7 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record TossProperties(
         String apiBaseUrl,
         String certPath,
-        String keyPath
+        String keyPath,
+        String callbackUsername,
+        String callbackPassword
 ) {
 
     boolean hasMtlsFiles() {

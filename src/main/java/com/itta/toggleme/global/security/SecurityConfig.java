@@ -27,6 +27,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/**", "/api/v1/auth/token/refresh",
                                 "/api/v1/auth/signup", "/api/v1/auth/login")
                         .permitAll()
+                        // 토스 연결 끊기 콜백은 GET으로도 온다. 인증은 컨트롤러가 Basic Auth로 직접 확인한다
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/oauth/toss/unlink").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

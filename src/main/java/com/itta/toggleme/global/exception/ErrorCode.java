@@ -21,6 +21,7 @@ public enum ErrorCode {
     INVALID_KAKAO_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 카카오 토큰입니다."),
     KAKAO_API_ERROR(HttpStatus.BAD_GATEWAY, "카카오 서버와 통신 중 오류가 발생했습니다."),
     TOSS_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않거나 이미 사용된 토스 인가 코드입니다."),
+    TOSS_CALLBACK_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "토스 콜백 인증에 실패했습니다."),
     TOSS_API_ERROR(HttpStatus.BAD_GATEWAY, "토스 서버와 통신 중 오류가 발생했습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다."),
     LOGIN_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),

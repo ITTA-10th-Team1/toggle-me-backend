@@ -61,6 +61,11 @@ public class TokenService {
                 .ifPresent(token -> token.revoke(Instant.now()));
     }
 
+    @Transactional
+    public void revokeAll(Long memberId) {
+        refreshTokenRepository.revokeAllActiveByMemberId(memberId, Instant.now());
+    }
+
     private TokenResponse issue(Member member, String sessionId) {
         String accessToken = jwtTokenProvider.createAccessToken(member.getId());
         String refreshToken = generateRefreshToken();

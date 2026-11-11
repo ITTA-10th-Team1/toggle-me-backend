@@ -45,6 +45,9 @@ toss:
   api-base-url: ${TOSS_API_BASE_URL:https://apps-in-toss-api.toss.im}
   cert-path: ${TOSS_MTLS_CERT_PATH:}
   key-path: ${TOSS_MTLS_KEY_PATH:}
+  # 토스가 연결 끊기 콜백을 보낼 때 쓰는 Basic Auth. 앱인토스 콘솔에 같은 값을 등록한다. 비워 두면 콜백을 모두 거절한다
+  callback-username: ${TOSS_CALLBACK_USERNAME:}
+  callback-password: ${TOSS_CALLBACK_PASSWORD:}
 
 naver:
   # NAVER API HUB 검색 API (냉장고 AI 추천의 음식 사진 검색)
