@@ -6,9 +6,11 @@ import com.itta.toggleme.auth.dto.LocalSignUpRequest;
 import com.itta.toggleme.auth.dto.LoginResponse;
 import com.itta.toggleme.auth.dto.RefreshTokenRequest;
 import com.itta.toggleme.auth.dto.TokenResponse;
+import com.itta.toggleme.auth.dto.TossLoginRequest;
 import com.itta.toggleme.auth.service.AuthService;
 import com.itta.toggleme.auth.service.LocalAuthService;
 import com.itta.toggleme.auth.service.TokenService;
+import com.itta.toggleme.auth.service.TossAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,13 +24,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "인증", description = "카카오·자체 계정 로그인, 토큰 갱신, 로그아웃")
+@Tag(name = "인증", description = "카카오·토스·자체 계정 로그인, 토큰 갱신, 로그아웃")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
     private final AuthService authService;
+    private final TossAuthService tossAuthService;
     private final LocalAuthService localAuthService;
     private final TokenService tokenService;
 
@@ -36,6 +39,12 @@ public class AuthController {
     @PostMapping("/oauth/kakao")
     public ResponseEntity<LoginResponse> loginWithKakao(@Valid @RequestBody KakaoLoginRequest request) {
         return ResponseEntity.ok(authService.loginWithKakao(request.accessToken()));
+    }
+
+    @Operation(summary = "토스 로그인·회원가입 (앱인토스 전용, 첫 로그인이면 자동 가입)")
+    @PostMapping("/oauth/toss")
+    public ResponseEntity<LoginResponse> loginWithToss(@Valid @RequestBody TossLoginRequest request) {
+        return ResponseEntity.ok(tossAuthService.loginWithToss(request.authorizationCode(), request.referrer()));
     }
 
     @Operation(summary = "자체 회원가입 (가입 즉시 토큰 발급)")

@@ -40,6 +40,12 @@ jwt:
 kakao:
   app-id: ${KAKAO_APP_ID:}
 
+toss:
+  # 앱인토스 서버 API(mTLS). 인증서·개인 키 경로는 저장소 밖 파일을 가리킨다. 비워 두면 토스 로그인은 502로 실패한다
+  api-base-url: ${TOSS_API_BASE_URL:https://apps-in-toss-api.toss.im}
+  cert-path: ${TOSS_MTLS_CERT_PATH:}
+  key-path: ${TOSS_MTLS_KEY_PATH:}
+
 naver:
   # NAVER API HUB 검색 API (냉장고 AI 추천의 음식 사진 검색)
   client-id: ${NAVER_CLIENT_ID:}
