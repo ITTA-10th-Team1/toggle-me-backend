@@ -11,10 +11,14 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.itta.toggleme.auth.exception.TossApiException;
 import com.itta.toggleme.auth.exception.TossAuthorizationCodeInvalidException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -145,5 +149,38 @@ class TossClientTest {
         server.expect(requestTo(TOKEN_URL)).andRespond(withSuccess());
 
         assertThatThrownBy(() -> tossClient.getUserInfo("code", "DEFAULT")).isInstanceOf(TossApiException.class);
+    }
+
+    @Test
+    void 토스_실패_응답의_원인을_로그에_남기고_인가_코드는_남기지_않는다() {
+        Logger logger = (Logger) LoggerFactory.getLogger(TossClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            server.expect(requestTo(TOKEN_URL))
+                    .andRespond(withSuccess("{\"resultType\":\"FAIL\",\"success\":null,"
+                            + "\"error\":{\"errorCode\":\"4050\",\"reason\":\"등록되지 않은 미니앱\"}}",
+                            MediaType.APPLICATION_JSON));
+
+            assertThatThrownBy(() -> tossClient.getUserInfo("secret-auth-code", "DEFAULT"))
+                    .isInstanceOf(TossApiException.class);
+
+            assertThat(appender.list).extracting(ILoggingEvent::getFormattedMessage)
+                    .anySatisfy(message -> assertThat(message).contains("4050").contains("등록되지 않은 미니앱"))
+                    .noneSatisfy(message -> assertThat(message).contains("secret-auth-code"));
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void 인증서_파일이_없어도_앱은_기동하고_토스_로그인만_실패한다() {
+        TossProperties properties = new TossProperties("https://toss.test", "/not/exist/cert.crt",
+                "/not/exist/key.key", "user", "pass");
+
+        TossClient client = new TossClient(properties);
+
+        assertThat(client).isNotNull();
     }
 }

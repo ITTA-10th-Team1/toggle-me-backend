@@ -82,6 +82,8 @@ public class TossClient {
             });
             return unwrap(result, invalidGrantMeansInvalidCode);
         } catch (RestClientException e) {
+            // 인가 코드·토큰이 담길 수 있는 메시지는 남기지 않고 예외 종류만 남긴다
+            log.warn("토스 API 호출 실패 cause={}", e.getClass().getSimpleName());
             throw new TossApiException();
         }
     }
@@ -95,6 +97,7 @@ public class TossClient {
         // 실제 응답은 실패해도 HTTP 200이고 {"resultType":"FAIL","success":null,"error":{...}} 모양이다.
         // 성공 응답에도 "error":null 키가 올 수 있어서 키 존재가 아니라 값으로 판단한다
         if (!result.status().is2xxSuccessful() || "FAIL".equals(body.get("resultType")) || error != null) {
+            logFailure(result.status(), error);
             throw new TossApiException();
         }
         if (body.get("success") instanceof Map<?, ?> success) {
@@ -105,8 +108,19 @@ public class TossClient {
         return body;
     }
 
+    /** 원인 파악용 로그. 인가 코드, 토큰, 요청·응답 본문 전체는 남기지 않는다. */
+    private void logFailure(HttpStatusCode status, Object error) {
+        if (error instanceof Map<?, ?> detail) {
+            log.warn("토스 API 실패 status={} errorCode={} reason={}",
+                    status.value(), detail.get("errorCode"), detail.get("reason"));
+            return;
+        }
+        log.warn("토스 API 실패 status={} error={}", status.value(), error);
+    }
+
     private String requireText(Object value) {
         if (value == null || String.valueOf(value).isBlank()) {
+            log.warn("토스 API 응답에 필요한 값이 없습니다.");
             throw new TossApiException();
         }
         return String.valueOf(value);
@@ -127,9 +141,15 @@ public class TossClient {
 
     private static SSLContext sslContext(TossProperties properties) {
         if (properties.hasMtlsFiles()) {
-            return MtlsSslContextFactory.create(Path.of(properties.certPath()), Path.of(properties.keyPath()));
+            try {
+                return MtlsSslContextFactory.create(Path.of(properties.certPath()), Path.of(properties.keyPath()));
+            } catch (IllegalStateException e) {
+                // 경로 오타나 마운트 누락으로 서버 전체가 내려가지 않게 한다. 토스 로그인만 502로 실패한다
+                log.error("토스 mTLS 인증서를 읽지 못해 토스 로그인이 동작하지 않습니다. cause={}", e.getMessage());
+            }
+        } else {
+            log.warn("토스 mTLS 인증서 경로가 설정되지 않아 토스 로그인이 동작하지 않습니다.");
         }
-        log.warn("토스 mTLS 인증서 경로가 설정되지 않아 토스 로그인이 동작하지 않습니다.");
         try {
             return SSLContext.getDefault();
         } catch (NoSuchAlgorithmException e) {
