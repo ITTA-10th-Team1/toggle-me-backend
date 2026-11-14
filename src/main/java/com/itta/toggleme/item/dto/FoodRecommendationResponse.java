@@ -4,5 +4,5 @@ package com.itta.toggleme.item.dto;
 public record FoodRecommendationResponse(
         String name,
         String imageUrl
-) {
+) implements RecommendationResponse {
 }

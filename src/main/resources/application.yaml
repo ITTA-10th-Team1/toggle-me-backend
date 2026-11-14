@@ -39,6 +39,8 @@ jwt:
 
 kakao:
   app-id: ${KAKAO_APP_ID:}
+  # 책장 AI 추천의 책 검색(카카오 다음 책 검색 API)에 쓰는 REST API 키. 서버 전용이다
+  rest-api-key: ${KAKAO_REST_API_KEY:}
 
 naver:
   # NAVER API HUB 검색 API (냉장고 AI 추천의 음식 사진 검색)
