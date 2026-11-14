@@ -1,7 +1,7 @@
 package com.itta.toggleme.item.controller;
 
 import com.itta.toggleme.item.domain.ItemSort;
-import com.itta.toggleme.item.dto.FoodRecommendationResponse;
+import com.itta.toggleme.item.dto.RecommendationResponse;
 import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
@@ -85,9 +85,9 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getDetail(memberId(jwt), itemId));
     }
 
-    @Operation(summary = "냉장고 기록 AI 추천 (태그와 비슷한 음식 이름·사진, 저장 안 함, 회원당 하루 10회)")
+    @Operation(summary = "기록 추천 (냉장고: 태그와 비슷한 음식 이름·사진 / 책장: 태그로 찾은 책 제목·저자·표지·링크, 저장 안 함, 회원당 하루 10회)")
     @PostMapping("/{itemId}/recommendations")
-    public ResponseEntity<List<FoodRecommendationResponse>> recommend(
+    public ResponseEntity<List<RecommendationResponse>> recommend(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long itemId
     ) {
