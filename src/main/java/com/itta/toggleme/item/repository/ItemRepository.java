@@ -46,6 +46,20 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
             Limit limit
     );
 
+    // 내 가구별 기록, 오래된 순. cursor보다 큰 id부터
+    @Query("""
+            select item from Item item
+            where item.member.id = :memberId and item.furnitureType.id = :furnitureTypeId
+              and (:cursor is null or item.id > :cursor)
+            order by item.id asc
+            """)
+    List<Item> findMyItemsByFurnitureOldest(
+            @Param("memberId") Long memberId,
+            @Param("furnitureTypeId") Long furnitureTypeId,
+            @Param("cursor") Long cursor,
+            Limit limit
+    );
+
     // 내 기록 전체(모든 가구·모든 날짜). 최신순은 cursor보다 작은 id부터, 오래된 순은 큰 id부터
     @Query("""
             select item from Item item

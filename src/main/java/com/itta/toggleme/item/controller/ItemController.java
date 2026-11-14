@@ -79,6 +79,17 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getAll(memberId(jwt), sort, cursor));
     }
 
+    @Operation(summary = "가구별 피드 (내 기록 20개씩. sort=LATEST|OLDEST, 다음 쪽은 마지막 id를 cursor로)")
+    @GetMapping("/feed")
+    public ResponseEntity<List<ItemResponse>> getFeed(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam Long furnitureTypeId,
+            @RequestParam(defaultValue = "LATEST") ItemSort sort,
+            @RequestParam(required = false) Long cursor
+    ) {
+        return ResponseEntity.ok(itemService.getFeed(memberId(jwt), furnitureTypeId, sort, cursor));
+    }
+
     @Operation(summary = "기록 상세 조회 (본인 기록)")
     @GetMapping("/{itemId}")
     public ResponseEntity<ItemResponse> getDetail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long itemId) {
