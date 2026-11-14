@@ -1,5 +1,6 @@
 package com.itta.toggleme.global.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -30,7 +31,11 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(errorCode, e.getBindingResult()));
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            ConstraintViolationException.class
+    })
     public ResponseEntity<ErrorResponse> handleInvalidRequestParameter(Exception e) {
         ErrorCode errorCode = ErrorCode.INVALID_INPUT_VALUE;
         return ResponseEntity.status(errorCode.getStatus())

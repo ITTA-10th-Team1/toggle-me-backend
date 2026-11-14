@@ -31,6 +31,7 @@ main에 병합된 코드를 운영 서버(EC2)에 배포하는 절차다.
 | `KAKAO_APP_ID` | 필수 | 카카오 앱 ID |
 | `GEMINI_API_KEY` | 필수 | 이미지 분석용 Gemini API 키(유료 등급 프로젝트. 무료 등급은 입력 데이터가 제품 개선에 쓰일 수 있다) |
 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 선택 | 냉장고 AI 추천의 음식 사진 검색(NAVER API HUB 검색 API). 비우면 추천 사진이 모두 빠진다 |
+| `ADMIN_DASHBOARD_USERNAME`, `ADMIN_DASHBOARD_PASSWORD` | 선택 | 관리자 대시보드 HTTP Basic 계정. 둘 다 설정해야 `/admin.html`에 접근할 수 있다 |
 | `JDK_JAVA_OPTIONS` | 선택 | 메모리 조정 시에만. 지정하면 compose 기본값 전체를 대체한다 |
 
 - DB 계정·비밀번호는 mysql 볼륨을 처음 만들 때만 적용된다. 나중에 바꾸면 `ALTER USER`도 실행한다

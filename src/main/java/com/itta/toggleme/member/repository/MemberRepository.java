@@ -3,6 +3,8 @@ package com.itta.toggleme.member.repository;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.domain.MemberStatus;
 import jakarta.persistence.LockModeType;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -19,4 +21,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByHandle(String handle);
 
     Optional<Member> findByHandleAndStatus(String handle, MemberStatus status);
+
+    @Query("select m.createdAt from Member m where m.createdAt >= :from")
+    List<Instant> findCreatedAtSince(@Param("from") Instant from);
 }

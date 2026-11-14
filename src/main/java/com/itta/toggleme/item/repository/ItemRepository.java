@@ -1,6 +1,7 @@
 package com.itta.toggleme.item.repository;
 
 import com.itta.toggleme.item.domain.Item;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,9 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     boolean existsByImageKey(String imageKey);
 
     long countByMemberIdAndFurnitureTypeIdAndRecordedOn(Long memberId, Long furnitureTypeId, LocalDate recordedOn);
+
+    @Query("select item.createdAt from Item item where item.createdAt >= :from")
+    List<Instant> findCreatedAtSince(@Param("from") Instant from);
 
     // 가구별 기록 목록, 최근에 올린 순. before가 있으면 그 id보다 앞선 기록부터
     @Query("""
