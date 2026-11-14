@@ -97,6 +97,15 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
+    void 책장도_횟수를_쓰지_않고_거절한다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+
+        assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationUnsupportedException.class);
+        verify(limiter, never()).acquire(1L);
+    }
+
+    @Test
     void 태그가_없으면_횟수를_쓰지_않고_거절한다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("fridge", List.of()));
