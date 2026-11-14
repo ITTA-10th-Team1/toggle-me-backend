@@ -19,6 +19,7 @@ docker compose up -d   # 로컬 MySQL
 ```
 
 - API 문서: http://localhost:8080/swagger-ui/index.html
+- 관리자 대시보드: http://localhost:8080/admin.html
 
 ## 환경 변수
 
@@ -32,6 +33,7 @@ docker compose up -d   # 로컬 MySQL
 | `GEMINI_API_KEY` | 이미지 분석용 Google AI Studio API 키. 테스트만 돌릴 때는 아무 값이나 넣어도 된다 |
 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 냉장고 AI 추천의 음식 사진 검색(NAVER API HUB 검색 API). 테스트만 돌릴 때는 비워도 된다 |
 | `S3_BUCKET`, `AWS_REGION` | 이미지 버킷과 리전. 기본값은 개발 버킷 `toggleme-dev-images`, `ap-northeast-2` |
+| `ADMIN_DASHBOARD_USERNAME`, `ADMIN_DASHBOARD_PASSWORD` | 관리자 대시보드 HTTP Basic 계정. 둘 중 하나라도 비어 있으면 접근이 거부된다 |
 
 S3 자격 증명은 `.env`가 아니라 `~/.aws/credentials`(개발용 IAM 사용자 키)에 둔다. 운영 서버는 EC2 IAM 역할을 쓴다.
 
