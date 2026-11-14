@@ -37,6 +37,19 @@ class KakaoBookClientTest {
     }
 
     @Test
+    void 저자_자리의_미사용인물코드와_빈_값은_뺀다() {
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://dapi.kakao.com/")))
+                .andRespond(withSuccess("""
+                        {"documents":[
+                          {"title":"교재","authors":["미사용인물코드"],"thumbnail":"https://t/a.jpg","url":"https://book/a"},
+                          {"title":"공저","authors":["가","미사용인물코드"," "],"thumbnail":"https://t/b.jpg","url":"https://book/b"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(client.search("여행", 2)).extracting(BookRecommendationResponse::authors)
+                .containsExactly(List.of(), List.of("가"));
+    }
+
+    @Test
     void 결과가_없으면_빈_목록이다() {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://dapi.kakao.com/")))
                 .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));

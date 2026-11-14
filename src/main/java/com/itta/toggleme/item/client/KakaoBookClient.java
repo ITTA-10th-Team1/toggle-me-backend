@@ -61,14 +61,21 @@ public class KakaoBookClient {
             return response.documents().stream()
                     .filter(d -> d.title() != null && !d.title().isBlank())
                     .filter(d -> d.thumbnail() != null && d.thumbnail().startsWith("https://"))
-                    .map(d -> new BookRecommendationResponse(d.title(), d.authors() == null ? List.of() : d.authors(),
-                            d.thumbnail(), d.url()))
+                    .map(d -> new BookRecommendationResponse(d.title(), realAuthors(d.authors()), d.thumbnail(), d.url()))
                     .toList();
         } catch (RuntimeException e) {
             // 검색어는 로그에 남기지 않는다
             log.warn("Kakao book search failed: {}", e.getClass().getSimpleName());
             throw new KakaoBookSearchException(e);
         }
+    }
+
+    // 카카오 데이터에 저자 자리에 들어 있는 자리표시 값(예: 미사용인물코드)은 화면에 보이지 않게 뺀다
+    private static List<String> realAuthors(List<String> authors) {
+        if (authors == null) {
+            return List.of();
+        }
+        return authors.stream().filter(a -> a != null && !a.isBlank() && !a.contains("미사용인물코드")).toList();
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
