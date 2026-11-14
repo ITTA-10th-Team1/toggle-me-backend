@@ -24,7 +24,6 @@ import com.itta.toggleme.room.repository.FurnitureVariantRepository;
 import com.itta.toggleme.room.repository.RoomStyleRepository;
 import com.itta.toggleme.room.service.RoomService;
 import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.JsonPath;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
