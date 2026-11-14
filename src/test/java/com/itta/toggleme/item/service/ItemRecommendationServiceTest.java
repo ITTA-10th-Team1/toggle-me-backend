@@ -3,9 +3,7 @@ package com.itta.toggleme.item.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,13 +29,14 @@ class ItemRecommendationServiceTest {
 
     private final ItemService itemService = mock(ItemService.class);
     private final FoodRecommender foodRecommender = mock(FoodRecommender.class);
+    private final BookRecommender bookRecommender = mock(BookRecommender.class);
     private final NaverImageClient naverImageClient = mock(NaverImageClient.class);
     private final KakaoBookClient kakaoBookClient = mock(KakaoBookClient.class);
     private final ItemRecommendationLimiter limiter = mock(ItemRecommendationLimiter.class);
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 6);
 
     private final ItemRecommendationService service =
-            new ItemRecommendationService(itemService, foodRecommender, naverImageClient, kakaoBookClient, limiter);
+            new ItemRecommendationService(itemService, foodRecommender, bookRecommender, naverImageClient, kakaoBookClient, limiter);
 
     @BeforeEach
     void setUp() {
@@ -105,20 +104,20 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
-    void 책장은_태그_3개로_책을_검색해_중복_없이_최대_5권을_돌려준다() {
+    void 책장은_AI가_고른_제목마다_첫_검색_결과를_중복_없이_돌려준다() {
         given(itemService.getRecommendationSource(1L, 5L))
-                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "잔잔한", "여행", "넷째")));
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "잔잔한")));
         BookRecommendationResponse a = book("A");
         BookRecommendationResponse b = book("B");
-        BookRecommendationResponse c = book("C");
-        given(kakaoBookClient.search("소설", 2)).willReturn(List.of(a, b));
-        given(kakaoBookClient.search("잔잔한", 2)).willReturn(List.of(b, c));
-        given(kakaoBookClient.search("여행", 2)).willReturn(List.of());
+        given(bookRecommender.recommend(List.of("소설", "잔잔한"))).willReturn(List.of("A", "B", "A2", "없는책"));
+        given(kakaoBookClient.search("A", 1)).willReturn(List.of(a));
+        given(kakaoBookClient.search("B", 1)).willReturn(List.of(b));
+        given(kakaoBookClient.search("A2", 1)).willReturn(List.of(a));
+        given(kakaoBookClient.search("없는책", 1)).willReturn(List.of());
 
         List<RecommendationResponse> result = service.recommend(1L, 5L);
 
-        assertThat(result).containsExactly(a, b, c);
-        verify(kakaoBookClient, never()).search(eq("넷째"), anyInt());
+        assertThat(result).containsExactly(a, b);
         verify(foodRecommender, never()).recommend(any());
         verify(limiter).acquire(1L);
     }
@@ -126,11 +125,12 @@ class ItemRecommendationServiceTest {
     @Test
     void 책_검색이_일부만_장애면_나머지를_보여_준다() {
         given(itemService.getRecommendationSource(1L, 5L))
-                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "여행")));
-        given(kakaoBookClient.search("소설", 2)).willThrow(new KakaoBookSearchException(new RuntimeException()));
-        given(kakaoBookClient.search("여행", 2)).willReturn(List.of(book("A")));
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A", "B"));
+        given(kakaoBookClient.search("A", 1)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(kakaoBookClient.search("B", 1)).willReturn(List.of(book("B")));
 
-        assertThat(service.recommend(1L, 5L)).containsExactly(book("A"));
+        assertThat(service.recommend(1L, 5L)).containsExactly(book("B"));
         verify(limiter, never()).release(any(), any());
     }
 
@@ -138,17 +138,29 @@ class ItemRecommendationServiceTest {
     void 책_검색이_모두_장애면_횟수를_돌려주고_실패로_알린다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
-        given(kakaoBookClient.search("소설", 2)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A"));
+        given(kakaoBookClient.search("A", 1)).willThrow(new KakaoBookSearchException(new RuntimeException()));
 
         assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
         verify(limiter).release(1L, TODAY);
     }
 
     @Test
-    void 책_검색_결과가_없으면_빈_목록이다() {
+    void AI가_책을_못_고르면_횟수를_돌려주고_실패로_알린다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
-        given(kakaoBookClient.search("소설", 2)).willReturn(List.of());
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of());
+
+        assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
+        verify(limiter).release(1L, TODAY);
+    }
+
+    @Test
+    void 고른_책이_모두_검색에_없으면_빈_목록이다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("없는책"));
+        given(kakaoBookClient.search("없는책", 1)).willReturn(List.of());
 
         assertThat(service.recommend(1L, 5L)).isEmpty();
     }
