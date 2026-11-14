@@ -7,9 +7,10 @@ import org.junit.jupiter.api.Test;
 class ItemDailyLimitTest {
 
     @Test
-    void 냉장고와_거울은_하루_10장이다() {
+    void 냉장고와_거울과_책장은_하루_10장이다() {
         assertThat(ItemDailyLimit.of("fridge")).hasValue(10);
         assertThat(ItemDailyLimit.of("mirror")).hasValue(10);
+        assertThat(ItemDailyLimit.of("bookshelf")).hasValue(10);
     }
 
     @Test
