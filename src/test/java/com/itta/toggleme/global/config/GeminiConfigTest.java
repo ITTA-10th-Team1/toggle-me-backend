@@ -13,13 +13,26 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.Environment;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class GeminiConfigTest {
 
+    private static Environment environmentWithKey(String key) {
+        return new MockEnvironment().withProperty(GeminiConfig.API_KEY_PROPERTY, key);
+    }
+
+    @Test
+    void 설정의_키를_그대로_쓰고_자리표시_글자를_넘기지_않는다() {
+        Client client = new GeminiConfig().googleGenAiClient(environmentWithKey("real-key"));
+
+        assertThat(client.apiKey()).isEqualTo("real-key").doesNotContain("${");
+    }
+
     @Test
     void 호출_timeout과_재시도_횟수를_건다() {
-        Client client = new GeminiConfig().googleGenAiClient("test-key");
+        Client client = new GeminiConfig().googleGenAiClient(environmentWithKey("test-key"));
 
         HttpOptions options = ((ApiClient) ReflectionTestUtils.getField(client, "apiClient")).httpOptions();
         assertThat(options.timeout()).contains(GeminiConfig.TIMEOUT_MILLIS);
