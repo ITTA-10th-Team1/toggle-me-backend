@@ -32,6 +32,8 @@ public class ItemRecommendationService {
 
     private static final String FRIDGE_CODE = "fridge";
     private static final String BOOKSHELF_CODE = "bookshelf";
+    // 책 제목마다 넉넉히 받아 그중 표지가 있는 첫 책을 쓴다(표지 없는 책을 거르고도 결과가 비지 않게)
+    private static final int BOOK_SEARCH_SIZE = 5;
 
     private final ItemService itemService;
     private final FoodRecommender foodRecommender;
@@ -50,25 +52,32 @@ public class ItemRecommendationService {
             throw new ItemRecommendationTagRequiredException();
         }
         LocalDate acquiredOn = limiter.acquire(memberId);
+        List<RecommendationResponse> result;
         try {
             if (!fridge) {
                 List<String> titles = bookRecommender.recommend(source.tags());
                 if (titles.isEmpty()) {
                     throw new IllegalStateException("empty recommendation");
                 }
-                return List.copyOf(findBooks(titles));
+                result = List.copyOf(findBooks(titles));
+            } else {
+                List<String> foods = foodRecommender.recommend(source.tags());
+                if (foods.isEmpty()) {
+                    throw new IllegalStateException("empty recommendation");
+                }
+                result = List.copyOf(findImages(foods));
             }
-            List<String> foods = foodRecommender.recommend(source.tags());
-            if (foods.isEmpty()) {
-                throw new IllegalStateException("empty recommendation");
-            }
-            return List.copyOf(findImages(foods));
         } catch (RuntimeException e) {
             // 우리 쪽 실패로 횟수를 잃지 않게, 요청을 시작한 날짜의 횟수를 돌려준다
             limiter.release(memberId, acquiredOn);
             log.warn("Recommendation failed: {}", e.getClass().getSimpleName());
             throw new ItemRecommendationFailedException();
         }
+        // 책 추천은 고른 책이 모두 검색에 없으면 빈 목록이다. 보여 줄 것이 없었으니 횟수는 쓰지 않은 것으로 돌려준다
+        if (!fridge && result.isEmpty()) {
+            limiter.release(memberId, acquiredOn);
+        }
+        return result;
     }
 
     // AI가 고른 책 제목마다 카카오 책 검색의 첫 결과(표지가 있는 책)를 붙이고, 같은 책(링크 기준)은 한 번만 담는다.
@@ -79,7 +88,7 @@ public class ItemRecommendationService {
         int failures = 0;
         for (String title : titles) {
             try {
-                kakaoBookClient.search(title, 1).stream().findFirst()
+                kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream().findFirst()
                         .ifPresent(book -> found.putIfAbsent(book.url() != null ? book.url() : book.title(), book));
             } catch (KakaoBookSearchException e) {
                 failures++;

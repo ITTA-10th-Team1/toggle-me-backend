@@ -110,10 +110,10 @@ class ItemRecommendationServiceTest {
         BookRecommendationResponse a = book("A");
         BookRecommendationResponse b = book("B");
         given(bookRecommender.recommend(List.of("소설", "잔잔한"))).willReturn(List.of("A", "B", "A2", "없는책"));
-        given(kakaoBookClient.search("A", 1)).willReturn(List.of(a));
-        given(kakaoBookClient.search("B", 1)).willReturn(List.of(b));
-        given(kakaoBookClient.search("A2", 1)).willReturn(List.of(a));
-        given(kakaoBookClient.search("없는책", 1)).willReturn(List.of());
+        given(kakaoBookClient.search("A", 5)).willReturn(List.of(a));
+        given(kakaoBookClient.search("B", 5)).willReturn(List.of(b));
+        given(kakaoBookClient.search("A2", 5)).willReturn(List.of(a));
+        given(kakaoBookClient.search("없는책", 5)).willReturn(List.of());
 
         List<RecommendationResponse> result = service.recommend(1L, 5L);
 
@@ -127,8 +127,8 @@ class ItemRecommendationServiceTest {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
         given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A", "B"));
-        given(kakaoBookClient.search("A", 1)).willThrow(new KakaoBookSearchException(new RuntimeException()));
-        given(kakaoBookClient.search("B", 1)).willReturn(List.of(book("B")));
+        given(kakaoBookClient.search("A", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(kakaoBookClient.search("B", 5)).willReturn(List.of(book("B")));
 
         assertThat(service.recommend(1L, 5L)).containsExactly(book("B"));
         verify(limiter, never()).release(any(), any());
@@ -139,7 +139,7 @@ class ItemRecommendationServiceTest {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
         given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A"));
-        given(kakaoBookClient.search("A", 1)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(kakaoBookClient.search("A", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
 
         assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
         verify(limiter).release(1L, TODAY);
@@ -156,13 +156,25 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
-    void 고른_책이_모두_검색에_없으면_빈_목록이다() {
+    void 고른_책이_모두_검색에_없으면_빈_목록을_주고_횟수를_돌려준다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
         given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("없는책"));
-        given(kakaoBookClient.search("없는책", 1)).willReturn(List.of());
+        given(kakaoBookClient.search("없는책", 5)).willReturn(List.of());
 
         assertThat(service.recommend(1L, 5L)).isEmpty();
+        verify(limiter).release(1L, TODAY);
+    }
+
+    @Test
+    void 책이_한_권이라도_있으면_횟수를_돌려주지_않는다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A"));
+        given(kakaoBookClient.search("A", 5)).willReturn(List.of(book("A")));
+
+        assertThat(service.recommend(1L, 5L)).hasSize(1);
+        verify(limiter, never()).release(any(), any());
     }
 
     private static BookRecommendationResponse book(String title) {
