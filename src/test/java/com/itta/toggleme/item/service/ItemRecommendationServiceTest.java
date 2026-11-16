@@ -2,15 +2,22 @@ package com.itta.toggleme.item.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.itta.toggleme.item.client.KakaoBookClient;
+import com.itta.toggleme.item.client.KakaoBookSearchException;
 import com.itta.toggleme.item.client.NaverImageClient;
 import com.itta.toggleme.item.client.NaverSearchException;
+import com.itta.toggleme.item.dto.BookRecommendationResponse;
 import com.itta.toggleme.item.dto.FoodRecommendationResponse;
+import com.itta.toggleme.item.dto.RecommendationResponse;
 import com.itta.toggleme.item.exception.ItemRecommendationFailedException;
 import com.itta.toggleme.item.exception.ItemRecommendationTagRequiredException;
 import com.itta.toggleme.item.exception.ItemRecommendationUnsupportedException;
@@ -25,11 +32,12 @@ class ItemRecommendationServiceTest {
     private final ItemService itemService = mock(ItemService.class);
     private final FoodRecommender foodRecommender = mock(FoodRecommender.class);
     private final NaverImageClient naverImageClient = mock(NaverImageClient.class);
+    private final KakaoBookClient kakaoBookClient = mock(KakaoBookClient.class);
     private final ItemRecommendationLimiter limiter = mock(ItemRecommendationLimiter.class);
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 6);
 
     private final ItemRecommendationService service =
-            new ItemRecommendationService(itemService, foodRecommender, naverImageClient, limiter);
+            new ItemRecommendationService(itemService, foodRecommender, naverImageClient, kakaoBookClient, limiter);
 
     @BeforeEach
     void setUp() {
@@ -45,7 +53,7 @@ class ItemRecommendationServiceTest {
         given(naverImageClient.findImageUrl("뇨끼")).willReturn(Optional.empty());
         given(naverImageClient.findImageUrl("라자냐")).willReturn(Optional.of("https://img/3.jpg"));
 
-        List<FoodRecommendationResponse> result = service.recommend(1L, 5L);
+        List<RecommendationResponse> result = service.recommend(1L, 5L);
 
         assertThat(result).containsExactly(
                 new FoodRecommendationResponse("리조또", "https://img/1.jpg"),
@@ -97,12 +105,56 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
-    void 책장도_횟수를_쓰지_않고_거절한다() {
+    void 책장은_태그_3개로_책을_검색해_중복_없이_최대_5권을_돌려준다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "잔잔한", "여행", "넷째")));
+        BookRecommendationResponse a = book("A");
+        BookRecommendationResponse b = book("B");
+        BookRecommendationResponse c = book("C");
+        given(kakaoBookClient.search("소설", 2)).willReturn(List.of(a, b));
+        given(kakaoBookClient.search("잔잔한", 2)).willReturn(List.of(b, c));
+        given(kakaoBookClient.search("여행", 2)).willReturn(List.of());
+
+        List<RecommendationResponse> result = service.recommend(1L, 5L);
+
+        assertThat(result).containsExactly(a, b, c);
+        verify(kakaoBookClient, never()).search(eq("넷째"), anyInt());
+        verify(foodRecommender, never()).recommend(any());
+        verify(limiter).acquire(1L);
+    }
+
+    @Test
+    void 책_검색이_일부만_장애면_나머지를_보여_준다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "여행")));
+        given(kakaoBookClient.search("소설", 2)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(kakaoBookClient.search("여행", 2)).willReturn(List.of(book("A")));
+
+        assertThat(service.recommend(1L, 5L)).containsExactly(book("A"));
+        verify(limiter, never()).release(any(), any());
+    }
+
+    @Test
+    void 책_검색이_모두_장애면_횟수를_돌려주고_실패로_알린다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(kakaoBookClient.search("소설", 2)).willThrow(new KakaoBookSearchException(new RuntimeException()));
 
-        assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationUnsupportedException.class);
-        verify(limiter, never()).acquire(1L);
+        assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
+        verify(limiter).release(1L, TODAY);
+    }
+
+    @Test
+    void 책_검색_결과가_없으면_빈_목록이다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(kakaoBookClient.search("소설", 2)).willReturn(List.of());
+
+        assertThat(service.recommend(1L, 5L)).isEmpty();
+    }
+
+    private static BookRecommendationResponse book(String title) {
+        return new BookRecommendationResponse(title, List.of("저자"), "https://img/" + title, "https://book/" + title);
     }
 
     @Test

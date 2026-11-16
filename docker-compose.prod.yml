@@ -18,6 +18,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 필요}
       KAKAO_APP_ID: ${KAKAO_APP_ID:?KAKAO_APP_ID 필요}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:?GEMINI_API_KEY 필요}
       # 냉장고 AI 추천의 음식 사진 검색. 비어 있으면 추천 사진이 모두 빠진다(서버는 정상 기동)
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
