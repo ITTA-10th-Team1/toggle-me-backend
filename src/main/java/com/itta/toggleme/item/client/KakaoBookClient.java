@@ -51,6 +51,8 @@ public class KakaoBookClient {
             SearchResponse response = restClient.get()
                     .uri(uri -> uri.path("/v3/search/book")
                             .queryParam("query", "{query}")
+                            // 제목만 대상으로 한다. 기본값은 저자·출판사까지 부분 일치라 엉뚱한 책이 나올 수 있다
+                            .queryParam("target", "title")
                             .queryParam("size", size)
                             .build(query))
                     .retrieve()

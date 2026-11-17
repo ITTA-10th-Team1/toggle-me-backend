@@ -123,6 +123,19 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
+    void 제목이_다른_책은_같은_책으로_보지_않고_띄어쓰기_기호_판본_차이는_같은_책으로_본다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        BookRecommendationResponse other = book("전혀 다른 책");
+        BookRecommendationResponse edition = book("채식주의자 (스페셜 에디션)");
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("지어낸 책", "채식 주의자!"));
+        given(kakaoBookClient.search("지어낸 책", 5)).willReturn(List.of(other));
+        given(kakaoBookClient.search("채식 주의자!", 5)).willReturn(List.of(other, edition));
+
+        assertThat(service.recommend(1L, 5L)).containsExactly(edition);
+    }
+
+    @Test
     void 책_검색이_일부만_장애면_나머지를_보여_준다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));

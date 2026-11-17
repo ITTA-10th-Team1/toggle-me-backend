@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,15 +81,17 @@ public class ItemRecommendationService {
         return result;
     }
 
-    // AI가 고른 책 제목마다 카카오 책 검색의 첫 결과(표지가 있는 책)를 붙이고, 같은 책(링크 기준)은 한 번만 담는다.
-    // 검색 결과가 없는 제목(AI가 지어낸 책)은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
+    // AI가 고른 책 제목마다 카카오 책 검색 결과 중 제목이 맞는 첫 책(표지가 있는 책)을 붙이고, 같은 책(링크 기준)은 한 번만 담는다.
+    // 맞는 결과가 없는 제목(AI가 지어낸 책)은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
     // 모든 검색이 장애로 실패하면(예: 키 누락) 빈 목록 대신 실패로 알린다
     private List<BookRecommendationResponse> findBooks(List<String> titles) {
         Map<String, BookRecommendationResponse> found = new LinkedHashMap<>();
         int failures = 0;
         for (String title : titles) {
             try {
-                kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream().findFirst()
+                kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream()
+                        .filter(book -> matchesTitle(book.title(), title))
+                        .findFirst()
                         .ifPresent(book -> found.putIfAbsent(book.url() != null ? book.url() : book.title(), book));
             } catch (KakaoBookSearchException e) {
                 failures++;
@@ -98,6 +101,16 @@ public class ItemRecommendationService {
             throw new IllegalStateException("all book searches failed");
         }
         return List.copyOf(found.values());
+    }
+
+    // 검색은 단어만 겹쳐도 다른 책을 돌려줄 수 있어, AI가 고른 제목이 결과 제목에 그대로 들어 있을 때만 같은 책으로 본다.
+    // 띄어쓰기·기호·대소문자 차이는 무시한다(예: "채식주의자" ↔ "채식주의자 (스페셜 에디션)")
+    private static boolean matchesTitle(String foundTitle, String wantedTitle) {
+        return normalizeTitle(foundTitle).contains(normalizeTitle(wantedTitle));
+    }
+
+    private static String normalizeTitle(String title) {
+        return title.replaceAll("[^\\p{L}\\p{N}]", "").toLowerCase(Locale.ROOT);
     }
 
     // 검색 결과가 없는 음식은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
