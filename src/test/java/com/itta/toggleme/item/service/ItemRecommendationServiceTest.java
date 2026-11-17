@@ -159,6 +159,27 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
+    void 짧아서_건너뛴_제목이_있어도_검색한_제목이_모두_장애면_실패로_알린다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("봄", "소설책"));
+        given(kakaoBookClient.search("소설책", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+
+        assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
+        verify(limiter).release(1L, TODAY);
+    }
+
+    @Test
+    void 제목이_모두_너무_짧으면_장애가_아니므로_빈_목록이고_횟수는_유지한다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("봄", "!!!"));
+
+        assertThat(service.recommend(1L, 5L)).isEmpty();
+        verify(limiter, never()).release(1L, TODAY);
+    }
+
+    @Test
     void 결과_제목이_2자_미만이면_어떤_제목과도_같은_책으로_보지_않는다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));

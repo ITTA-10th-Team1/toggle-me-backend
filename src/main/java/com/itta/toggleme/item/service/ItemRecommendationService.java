@@ -88,7 +88,11 @@ public class ItemRecommendationService {
     // 제목마다 검색은 서로 독립이라 동시에 보내고, 결과 순서는 AI가 고른 순서를 지킨다.
     // 맞는 결과가 없는 제목(AI가 지어낸 책)은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
     // 모든 검색이 장애로 실패하면(예: 키 누락) 빈 목록 대신 실패로 알린다
-    private List<BookRecommendationResponse> findBooks(List<String> titles) {
+    private List<BookRecommendationResponse> findBooks(List<String> candidates) {
+        // 너무 짧은 제목은 아무 책과나 맞아서 검색하지 않는다. 장애 판정은 실제로 검색한 제목만 센다
+        List<String> titles = candidates.stream()
+                .filter(title -> normalizeTitle(title).length() >= MIN_TITLE_LENGTH)
+                .toList();
         List<Future<Optional<BookRecommendationResponse>>> searches = new ArrayList<>();
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (String title : titles) {
@@ -111,16 +115,13 @@ public class ItemRecommendationService {
                 throw new IllegalStateException("book search interrupted", e);
             }
         }
-        if (failures == titles.size()) {
+        if (!titles.isEmpty() && failures == titles.size()) {
             throw new IllegalStateException("all book searches failed");
         }
         return List.copyOf(found.values());
     }
 
     private Optional<BookRecommendationResponse> findBook(String title) {
-        if (normalizeTitle(title).length() < MIN_TITLE_LENGTH) {
-            return Optional.empty(); // 너무 짧은 제목은 아무 책과나 맞아서 검색하지 않는다
-        }
         return kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream()
                 .filter(book -> matchesTitle(book.title(), title))
                 .findFirst();
