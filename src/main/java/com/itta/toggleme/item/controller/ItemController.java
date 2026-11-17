@@ -96,7 +96,7 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getDetail(memberId(jwt), itemId));
     }
 
-    @Operation(summary = "기록 추천 (냉장고: 태그와 비슷한 음식 이름·사진 / 책장: 태그로 찾은 책 제목·저자·표지·링크, 저장 안 함, 회원당 하루 10회)")
+    @Operation(summary = "기록 추천 (냉장고: 태그와 비슷한 음식 이름·사진 / 책장: AI가 고른 책의 제목·저자·표지·링크, 저장 안 함, 회원당 하루 10회)")
     @PostMapping("/{itemId}/recommendations")
     public ResponseEntity<List<RecommendationResponse>> recommend(
             @AuthenticationPrincipal Jwt jwt,

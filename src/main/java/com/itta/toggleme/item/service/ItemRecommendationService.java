@@ -16,6 +16,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +28,7 @@ import org.springframework.stereotype.Service;
 /**
  * 기록 상세의 "추천" 버튼. 가구마다 방식이 다르다.
  * 냉장고는 기록의 태그로 AI가 비슷한 음식을 고르고 음식마다 네이버 이미지 검색으로 사진을 붙인다.
- * 책장은 AI가 비슷한 책 제목을 고르고 제목마다 카카오 책 검색으로 표지와 링크를 붙인다.
+ * 책장은 AI가 비슷한 책 제목을 고르고 제목마다 카카오 책 제목 검색(동시 호출)으로 표지와 링크를 붙인다.
  * 결과는 저장하지 않는다(누를 때마다 새로 만든다). 외부 호출이 길어서 DB 트랜잭션을 잡지 않는다.
  */
 @Slf4j
@@ -35,6 +40,7 @@ public class ItemRecommendationService {
     private static final String BOOKSHELF_CODE = "bookshelf";
     // 책 제목마다 넉넉히 받아 그중 표지가 있는 첫 책을 쓴다(표지 없는 책을 거르고도 결과가 비지 않게)
     private static final int BOOK_SEARCH_SIZE = 5;
+    private static final int MIN_TITLE_LENGTH = 2;
 
     private final ItemService itemService;
     private final FoodRecommender foodRecommender;
@@ -69,32 +75,40 @@ public class ItemRecommendationService {
                 result = List.copyOf(findImages(foods));
             }
         } catch (RuntimeException e) {
-            // 우리 쪽 실패로 횟수를 잃지 않게, 요청을 시작한 날짜의 횟수를 돌려준다
+            // 장애로 실패한 경우에만 횟수를 돌려준다(요청을 시작한 날짜 기준). 결과가 비어 있는 것은 장애가 아니라서 돌려주지 않는다.
+            // 비었을 때도 돌려주면 Gemini와 카카오를 횟수 제한 없이 부를 수 있다
             limiter.release(memberId, acquiredOn);
             log.warn("Recommendation failed: {}", e.getClass().getSimpleName());
             throw new ItemRecommendationFailedException();
         }
-        // 책 추천은 고른 책이 모두 검색에 없으면 빈 목록이다. 보여 줄 것이 없었으니 횟수는 쓰지 않은 것으로 돌려준다
-        if (!fridge && result.isEmpty()) {
-            limiter.release(memberId, acquiredOn);
-        }
         return result;
     }
 
-    // AI가 고른 책 제목마다 카카오 책 검색 결과 중 제목이 맞는 첫 책(표지가 있는 책)을 붙이고, 같은 책(링크 기준)은 한 번만 담는다.
+    // AI가 고른 책 제목마다 카카오 책 제목 검색 결과 중 제목이 맞는 첫 책(표지가 있는 책)을 붙이고, 같은 책(링크 기준)은 한 번만 담는다.
+    // 제목마다 검색은 서로 독립이라 동시에 보내고, 결과 순서는 AI가 고른 순서를 지킨다.
     // 맞는 결과가 없는 제목(AI가 지어낸 책)은 뺀다. 일부 검색만 장애로 실패하면 나머지를 보여 주고,
     // 모든 검색이 장애로 실패하면(예: 키 누락) 빈 목록 대신 실패로 알린다
     private List<BookRecommendationResponse> findBooks(List<String> titles) {
+        List<Future<Optional<BookRecommendationResponse>>> searches = new ArrayList<>();
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (String title : titles) {
+                searches.add(executor.submit(() -> findBook(title)));
+            }
+        } // close()가 모든 검색이 끝나기를 기다린다
+
         Map<String, BookRecommendationResponse> found = new LinkedHashMap<>();
         int failures = 0;
-        for (String title : titles) {
+        for (Future<Optional<BookRecommendationResponse>> search : searches) {
             try {
-                kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream()
-                        .filter(book -> matchesTitle(book.title(), title))
-                        .findFirst()
-                        .ifPresent(book -> found.putIfAbsent(book.url() != null ? book.url() : book.title(), book));
-            } catch (KakaoBookSearchException e) {
+                search.get().ifPresent(book -> found.putIfAbsent(book.url() != null ? book.url() : book.title(), book));
+            } catch (ExecutionException e) {
+                if (!(e.getCause() instanceof KakaoBookSearchException)) {
+                    throw new IllegalStateException("unexpected book search error", e.getCause());
+                }
                 failures++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("book search interrupted", e);
             }
         }
         if (failures == titles.size()) {
@@ -103,10 +117,25 @@ public class ItemRecommendationService {
         return List.copyOf(found.values());
     }
 
-    // 검색은 단어만 겹쳐도 다른 책을 돌려줄 수 있어, AI가 고른 제목이 결과 제목에 그대로 들어 있을 때만 같은 책으로 본다.
-    // 띄어쓰기·기호·대소문자 차이는 무시한다(예: "채식주의자" ↔ "채식주의자 (스페셜 에디션)")
+    private Optional<BookRecommendationResponse> findBook(String title) {
+        if (normalizeTitle(title).length() < MIN_TITLE_LENGTH) {
+            return Optional.empty(); // 너무 짧은 제목은 아무 책과나 맞아서 검색하지 않는다
+        }
+        return kakaoBookClient.search(title, BOOK_SEARCH_SIZE).stream()
+                .filter(book -> matchesTitle(book.title(), title))
+                .findFirst();
+    }
+
+    // 검색은 단어만 겹쳐도 다른 책을 돌려줄 수 있어, 두 제목의 앞부분이 한쪽이 다른 쪽으로 시작하는 꼴로 일치할 때만 같은 책으로 본다.
+    // 띄어쓰기·기호·대소문자 차이는 무시한다. 판본 표기("채식주의자 (스페셜 에디션)")나 AI가 붙인 부제("채식주의자 장편소설")는 같은 책이다.
+    // 정규화 결과가 2자 미만인 제목은 아무 책과나 맞아서 같은 책으로 보지 않는다
     private static boolean matchesTitle(String foundTitle, String wantedTitle) {
-        return normalizeTitle(foundTitle).contains(normalizeTitle(wantedTitle));
+        String found = normalizeTitle(foundTitle);
+        String wanted = normalizeTitle(wantedTitle);
+        if (found.length() < MIN_TITLE_LENGTH || wanted.length() < MIN_TITLE_LENGTH) {
+            return false;
+        }
+        return found.startsWith(wanted) || wanted.startsWith(found);
     }
 
     private static String normalizeTitle(String title) {

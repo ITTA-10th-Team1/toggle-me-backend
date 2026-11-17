@@ -107,12 +107,12 @@ class ItemRecommendationServiceTest {
     void 책장은_AI가_고른_제목마다_첫_검색_결과를_중복_없이_돌려준다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설", "잔잔한")));
-        BookRecommendationResponse a = book("A");
-        BookRecommendationResponse b = book("B");
-        given(bookRecommender.recommend(List.of("소설", "잔잔한"))).willReturn(List.of("A", "B", "A2", "없는책"));
-        given(kakaoBookClient.search("A", 5)).willReturn(List.of(a));
-        given(kakaoBookClient.search("B", 5)).willReturn(List.of(b));
-        given(kakaoBookClient.search("A2", 5)).willReturn(List.of(a));
+        BookRecommendationResponse a = book("AA");
+        BookRecommendationResponse b = book("BB");
+        given(bookRecommender.recommend(List.of("소설", "잔잔한"))).willReturn(List.of("AA", "BB", "AA2", "없는책"));
+        given(kakaoBookClient.search("AA", 5)).willReturn(List.of(a));
+        given(kakaoBookClient.search("BB", 5)).willReturn(List.of(b));
+        given(kakaoBookClient.search("AA2", 5)).willReturn(List.of(a));
         given(kakaoBookClient.search("없는책", 5)).willReturn(List.of());
 
         List<RecommendationResponse> result = service.recommend(1L, 5L);
@@ -136,14 +136,62 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
+    void AI가_부제까지_붙인_제목도_카카오의_짧은_제목과_같은_책으로_본다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        BookRecommendationResponse shortTitle = book("채식주의자");
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("채식주의자 - 한강 장편소설"));
+        given(kakaoBookClient.search("채식주의자 - 한강 장편소설", 5)).willReturn(List.of(shortTitle));
+
+        assertThat(service.recommend(1L, 5L)).containsExactly(shortTitle);
+    }
+
+    @Test
+    void 정규화하면_2자_미만인_제목은_검색하지_않고_뺀다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("봄", "!!!", "소설책"));
+        given(kakaoBookClient.search("소설책", 5)).willReturn(List.of(book("봄"), book("소설책")));
+
+        assertThat(service.recommend(1L, 5L)).containsExactly(book("소설책"));
+        verify(kakaoBookClient, never()).search("봄", 5);
+        verify(kakaoBookClient, never()).search("!!!", 5);
+    }
+
+    @Test
+    void 결과_제목이_2자_미만이면_어떤_제목과도_같은_책으로_보지_않는다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("봄날의 책"));
+        given(kakaoBookClient.search("봄날의 책", 5)).willReturn(List.of(book("봄")));
+
+        assertThat(service.recommend(1L, 5L)).isEmpty();
+    }
+
+    @Test
+    void 책_검색은_동시에_보내도_AI가_고른_순서대로_돌려준다() {
+        given(itemService.getRecommendationSource(1L, 5L))
+                .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("가가", "나나", "다다"));
+        given(kakaoBookClient.search("가가", 5)).willAnswer(invocation -> {
+            Thread.sleep(150); // 가장 느려도 순서는 바뀌지 않는다
+            return List.of(book("가가"));
+        });
+        given(kakaoBookClient.search("나나", 5)).willReturn(List.of(book("나나")));
+        given(kakaoBookClient.search("다다", 5)).willReturn(List.of(book("다다")));
+
+        assertThat(service.recommend(1L, 5L)).containsExactly(book("가가"), book("나나"), book("다다"));
+    }
+
+    @Test
     void 책_검색이_일부만_장애면_나머지를_보여_준다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
-        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A", "B"));
-        given(kakaoBookClient.search("A", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
-        given(kakaoBookClient.search("B", 5)).willReturn(List.of(book("B")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("AA", "BB"));
+        given(kakaoBookClient.search("AA", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(kakaoBookClient.search("BB", 5)).willReturn(List.of(book("BB")));
 
-        assertThat(service.recommend(1L, 5L)).containsExactly(book("B"));
+        assertThat(service.recommend(1L, 5L)).containsExactly(book("BB"));
         verify(limiter, never()).release(any(), any());
     }
 
@@ -151,8 +199,8 @@ class ItemRecommendationServiceTest {
     void 책_검색이_모두_장애면_횟수를_돌려주고_실패로_알린다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
-        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A"));
-        given(kakaoBookClient.search("A", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("AA"));
+        given(kakaoBookClient.search("AA", 5)).willThrow(new KakaoBookSearchException(new RuntimeException()));
 
         assertThatThrownBy(() -> service.recommend(1L, 5L)).isInstanceOf(ItemRecommendationFailedException.class);
         verify(limiter).release(1L, TODAY);
@@ -169,22 +217,22 @@ class ItemRecommendationServiceTest {
     }
 
     @Test
-    void 고른_책이_모두_검색에_없으면_빈_목록을_주고_횟수를_돌려준다() {
+    void 고른_책이_모두_검색에_없으면_장애가_아니므로_빈_목록이고_횟수는_유지한다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
         given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("없는책"));
         given(kakaoBookClient.search("없는책", 5)).willReturn(List.of());
 
         assertThat(service.recommend(1L, 5L)).isEmpty();
-        verify(limiter).release(1L, TODAY);
+        verify(limiter, never()).release(1L, TODAY);
     }
 
     @Test
     void 책이_한_권이라도_있으면_횟수를_돌려주지_않는다() {
         given(itemService.getRecommendationSource(1L, 5L))
                 .willReturn(new ItemRecommendationSource("bookshelf", List.of("소설")));
-        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("A"));
-        given(kakaoBookClient.search("A", 5)).willReturn(List.of(book("A")));
+        given(bookRecommender.recommend(List.of("소설"))).willReturn(List.of("AA"));
+        given(kakaoBookClient.search("AA", 5)).willReturn(List.of(book("AA")));
 
         assertThat(service.recommend(1L, 5L)).hasSize(1);
         verify(limiter, never()).release(any(), any());
