@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>Toggle, Me! 운영 현황</title>
+    <title>Toggle, Me! 운영 대시보드</title>
     <style>
         :root {
             color-scheme: light;
-            --ink: #17221c;
-            --muted: #526159;
-            --paper: #edf1ef;
+            --ink: #191f28;
+            --muted: #6b7684;
+            --paper: #f5f6f8;
             --surface: #ffffff;
-            --line: #cdd6d1;
-            --accent: #c5532d;
-            --accent-soft: #f2ded2;
-            --focus: #1f6b4f;
+            --line: #e5e8eb;
+            --accent: #3182f6;
+            --accent-soft: #e8f3ff;
+            --danger: #d63c3c;
         }
 
         * { box-sizing: border-box; }
@@ -24,93 +24,64 @@
             margin: 0;
             background: var(--paper);
             color: var(--ink);
-            font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
         }
-
-        ::selection { background: var(--accent-soft); color: var(--ink); }
 
         button, select { font: inherit; }
+        button:focus-visible, select:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
 
-        button:focus-visible, select:focus-visible {
-            outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent);
-            outline-offset: 2px;
-        }
+        main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 64px; }
 
-        main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 44px 0 64px; }
-
-        header {
-            display: flex;
-            align-items: end;
-            justify-content: space-between;
-            gap: 24px;
-            padding-bottom: 24px;
-            border-bottom: 2px solid var(--ink);
-        }
-
-        h1 { margin: 0; font-size: clamp(28px, 4vw, 48px); line-height: 1.08; letter-spacing: -0.03em; }
-        h2 { margin: 0 0 6px; font-size: 18px; }
+        header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+        h1 { margin: 0; font-size: 24px; letter-spacing: -0.02em; }
+        h2 { margin: 0 0 4px; font-size: 17px; }
         p { margin: 0; }
-        .muted { color: var(--muted); }
-        #generated-at { margin-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+        .muted { color: var(--muted); font-size: 13px; }
 
         .controls { display: flex; gap: 8px; }
         select, button {
-            min-height: 42px;
-            border: 1px solid var(--ink);
-            border-radius: 10px;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
             background: var(--surface);
             color: var(--ink);
-            padding: 8px 12px;
+            padding: 6px 12px;
+            cursor: pointer;
         }
-        button { cursor: pointer; background: var(--ink); color: var(--surface); font-weight: 700; }
-        button:hover { background: var(--focus); }
+        button:hover { background: var(--paper); }
         button:disabled { cursor: wait; opacity: .55; }
 
-        #status { min-height: 24px; margin: 14px 0 0; color: #a13625; }
+        #status { min-height: 20px; margin-bottom: 8px; color: var(--danger); font-size: 14px; }
 
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            margin: 28px 0 42px;
-            border-block: 1px solid var(--line);
-        }
-        .metric { padding: 22px 20px; border-right: 1px solid var(--line); }
-        .metric:first-child { padding-left: 0; }
-        .metric:last-child { border-right: 0; }
-        .metric dt { color: var(--muted); font-size: 13px; }
-        .metric dd {
-            margin: 4px 0 0;
-            font-size: clamp(28px, 4vw, 42px);
-            font-weight: 760;
-            line-height: 1.15;
-            letter-spacing: -0.025em;
-            font-variant-numeric: tabular-nums;
-        }
+        .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 0 0 24px; }
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+        .card dt { color: var(--muted); font-size: 13px; }
+        .card dd { margin: 0; }
+        .card .value { display: block; margin: 6px 0 4px; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+        .card .caption { color: var(--muted); font-size: 13px; }
 
-        .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-        .panel-head { display: flex; justify-content: space-between; gap: 24px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
-        .panel-head p { max-width: 54ch; font-size: 13px; }
-        .table-wrap { overflow-x: auto; }
+        .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+        .stack { display: grid; gap: 24px; }
+        .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+        .panel > .muted { margin-bottom: 12px; }
+
         table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-        th, td { padding: 12px 22px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
         tr:last-child td { border-bottom: 0; }
-        th { color: var(--muted); font-size: 12px; font-weight: 650; }
+        th { color: var(--muted); font-size: 13px; font-weight: 500; }
         .number { text-align: right; }
-        .trend { width: 38%; min-width: 180px; }
-        .track { height: 8px; overflow: hidden; border-radius: 4px; background: var(--accent-soft); }
+        .trend { width: 35%; }
+        .track { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
         .bar { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width 320ms ease-out; }
 
-        @media (max-width: 720px) {
-            main { width: min(100% - 24px, 1120px); padding-top: 24px; }
-            header { align-items: stretch; flex-direction: column; }
-            .controls { width: 100%; }
+        @media (max-width: 860px) {
+            .cards { grid-template-columns: 1fr 1fr; }
+            .columns { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 520px) {
+            header { flex-direction: column; align-items: stretch; }
             .controls select { flex: 1; }
-            .metrics { grid-template-columns: 1fr 1fr; }
-            .metric:nth-child(2) { border-right: 0; }
-            .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
-            .metric, .metric:first-child { padding: 18px 12px; }
-            .panel-head { flex-direction: column; gap: 4px; }
-            th, td { padding-inline: 16px; }
             .trend { display: none; }
         }
 
@@ -121,7 +92,7 @@
 <main>
     <header>
         <div>
-            <h1>Toggle, Me! 운영 현황</h1>
+            <h1>Toggle, Me! 운영 대시보드</h1>
             <p id="generated-at" class="muted">데이터를 불러오는 중입니다.</p>
         </div>
         <div class="controls">
@@ -137,33 +108,54 @@
 
     <p id="status" role="status" aria-live="polite"></p>
 
-    <dl class="metrics" aria-label="전체 핵심 지표">
-        <div class="metric"><dt>회원</dt><dd id="members">—</dd></div>
-        <div class="metric"><dt>방</dt><dd id="rooms">—</dd></div>
-        <div class="metric"><dt>기록</dt><dd id="items">—</dd></div>
-        <div class="metric"><dt>팔로우</dt><dd id="follows">—</dd></div>
+    <dl class="cards" aria-label="핵심 지표">
+        <div class="card"><dt>회원</dt><dd><span class="value" id="members">—</span><span class="caption" id="members-caption"></span></dd></div>
+        <div class="card"><dt>기록</dt><dd><span class="value" id="items">—</span><span class="caption" id="items-caption"></span></dd></div>
+        <div class="card"><dt>방 · 팔로우</dt><dd><span class="value" id="rooms-follows">—</span><span class="caption">전체 누적</span></dd></div>
+        <div class="card"><dt>재방문율</dt><dd><span class="value" id="returned-rate">—</span><span class="caption" id="returned-caption"></span></dd></div>
+        <div class="card"><dt>프로필 완료율</dt><dd><span class="value" id="profile-rate">—</span><span class="caption" id="profile-caption"></span></dd></div>
+        <div class="card"><dt>첫 기록률</dt><dd><span class="value" id="recorded-rate">—</span><span class="caption" id="recorded-caption"></span></dd></div>
+        <div class="card"><dt>AI 분석 성공률</dt><dd><span class="value" id="analysis-rate">—</span><span class="caption" id="analysis-caption"></span></dd></div>
+        <div class="card"><dt>AI 평균 소요</dt><dd><span class="value" id="analysis-time">—</span><span class="caption" id="analysis-time-caption"></span></dd></div>
     </dl>
 
-    <section class="panel" aria-labelledby="daily-title">
-        <div class="panel-head">
-            <div>
-                <h2 id="daily-title">일별 신규 활동</h2>
-                <p class="muted">한국 시간 기준 회원 가입과 취향 기록 생성 수입니다.</p>
-            </div>
-            <p class="muted" id="period-summary"></p>
-        </div>
-        <div class="table-wrap">
+    <div class="columns">
+        <section class="panel" aria-labelledby="daily-title">
+            <h2 id="daily-title">일별 추이</h2>
+            <p class="muted">한국 시간 기준 신규 가입과 새 기록 수입니다.</p>
             <table>
-                <thead><tr><th>날짜</th><th class="number">신규 회원</th><th class="number">새 기록</th><th class="trend">활동량</th></tr></thead>
+                <thead><tr><th>날짜</th><th class="number">가입</th><th class="number">기록</th><th class="trend"></th></tr></thead>
                 <tbody id="daily"></tbody>
             </table>
+        </section>
+
+        <div class="stack">
+            <section class="panel" aria-labelledby="funnel-title">
+                <h2 id="funnel-title">가입 퍼널</h2>
+                <p class="muted">기간에 가입한 회원(탈퇴 제외)이 단계마다 몇 명 남는지입니다. 재방문은 서로 다른 날짜에 2일 이상 기록한 회원입니다.</p>
+                <table>
+                    <thead><tr><th>단계</th><th class="number">회원</th><th class="number">앞 단계 대비</th><th class="trend"></th></tr></thead>
+                    <tbody id="funnel"></tbody>
+                </table>
+            </section>
+
+            <section class="panel" aria-labelledby="furniture-title">
+                <h2 id="furniture-title">가구별 기록</h2>
+                <p class="muted">기간에 만든 기록을 가구별로 셉니다.</p>
+                <table>
+                    <thead><tr><th>가구</th><th class="number">기록</th><th class="trend"></th></tr></thead>
+                    <tbody id="furniture"></tbody>
+                </table>
+            </section>
         </div>
-    </section>
+    </div>
 </main>
 
 <script>
     const number = new Intl.NumberFormat("ko-KR");
     const $ = (selector) => document.querySelector(selector);
+    const percent = (part, whole) => whole === 0 ? "—" : `${Math.round((part / whole) * 100)}%`;
+    const seconds = (value) => value == null ? "—" : `${value.toFixed(1)}초`;
 
     function cell(text, className) {
         const element = document.createElement("td");
@@ -172,33 +164,87 @@
         return element;
     }
 
-    function render(data) {
-        for (const key of ["members", "rooms", "items", "follows"]) {
-            $(`#${key}`).textContent = number.format(data.summary[key]);
-        }
+    function barCell(ratio) {
+        const trend = cell("", "trend");
+        const track = document.createElement("div");
+        const bar = document.createElement("div");
+        track.className = "track";
+        bar.className = "bar";
+        bar.style.width = `${ratio * 100}%`;
+        track.append(bar);
+        trend.append(track);
+        return trend;
+    }
 
-        const totals = data.daily.reduce((sum, day) => ({
+    function row(...cells) {
+        const element = document.createElement("tr");
+        element.append(...cells);
+        return element;
+    }
+
+    function renderCards(data) {
+        const { summary, funnel, imageAnalysis: analysis } = data;
+        const period = data.daily.reduce((sum, day) => ({
             members: sum.members + day.members,
             items: sum.items + day.items
         }), { members: 0, items: 0 });
-        $("#period-summary").textContent = `${data.days}일 동안 회원 +${number.format(totals.members)} · 기록 +${number.format(totals.items)}`;
-        $("#generated-at").textContent = `마지막 갱신 ${new Date(data.generatedAt).toLocaleString("ko-KR")}`;
 
-        const maximum = Math.max(1, ...data.daily.map((day) => day.members + day.items));
-        const rows = [...data.daily].reverse().map((day) => {
-            const row = document.createElement("tr");
-            const trend = cell("", "trend");
-            const track = document.createElement("div");
-            const bar = document.createElement("div");
-            track.className = "track";
-            bar.className = "bar";
-            bar.style.width = `${((day.members + day.items) / maximum) * 100}%`;
-            track.append(bar);
-            trend.append(track);
-            row.append(cell(day.date), cell(number.format(day.members), "number"), cell(number.format(day.items), "number"), trend);
-            return row;
-        });
-        $("#daily").replaceChildren(...rows);
+        $("#members").textContent = number.format(summary.members);
+        $("#members-caption").textContent = `기간 +${number.format(period.members)}`;
+        $("#items").textContent = number.format(summary.items);
+        $("#items-caption").textContent = `기간 +${number.format(period.items)} · 일평균 ${(period.items / data.days).toFixed(1)}`;
+        $("#rooms-follows").textContent = `${number.format(summary.rooms)} · ${number.format(summary.follows)}`;
+
+        $("#profile-rate").textContent = percent(funnel.profileCompleted, funnel.signedUp);
+        $("#profile-caption").textContent = `완료 ${funnel.profileCompleted} / 가입 ${funnel.signedUp}`;
+        $("#recorded-rate").textContent = percent(funnel.recorded, funnel.signedUp);
+        $("#recorded-caption").textContent = `기록 ${funnel.recorded} / 가입 ${funnel.signedUp}`;
+        $("#returned-rate").textContent = percent(funnel.returned, funnel.recorded);
+        $("#returned-caption").textContent = `재방문 ${funnel.returned} / 첫 기록 ${funnel.recorded}`;
+
+        $("#analysis-rate").textContent = percent(analysis.completed, analysis.total);
+        $("#analysis-caption").textContent =
+            `완료 ${analysis.completed} / 요청 ${analysis.total} · 실패 ${analysis.failed} · 멈춤 ${analysis.stuck}`;
+        $("#analysis-time").textContent = seconds(analysis.avgSeconds);
+        $("#analysis-time-caption").textContent = `최대 ${seconds(analysis.maxSeconds)} · 진행 중 ${analysis.pending}`;
+    }
+
+    function renderDaily(daily) {
+        const maximum = Math.max(1, ...daily.map((day) => day.members + day.items));
+        $("#daily").replaceChildren(...[...daily].reverse().map((day) => row(
+            cell(day.date), cell(number.format(day.members), "number"), cell(number.format(day.items), "number"),
+            barCell((day.members + day.items) / maximum)
+        )));
+    }
+
+    function renderFunnel(funnel) {
+        const steps = [
+            ["가입", funnel.signedUp],
+            ["프로필 완료", funnel.profileCompleted],
+            ["첫 기록", funnel.recorded],
+            ["재방문 기록", funnel.returned]
+        ];
+        $("#funnel").replaceChildren(...steps.map(([label, count], index) => row(
+            cell(label), cell(number.format(count), "number"),
+            cell(index === 0 ? "" : percent(count, steps[index - 1][1]), "number"),
+            barCell(funnel.signedUp === 0 ? 0 : count / funnel.signedUp)
+        )));
+    }
+
+    function renderFurniture(furnitureItems) {
+        const maximum = Math.max(1, ...furnitureItems.map((furniture) => furniture.items));
+        $("#furniture").replaceChildren(...furnitureItems.map((furniture) => row(
+            cell(furniture.name), cell(number.format(furniture.items), "number"), barCell(furniture.items / maximum)
+        )));
+    }
+
+    function render(data) {
+        $("#generated-at").textContent =
+            `기준 시각 ${new Date(data.generatedAt).toLocaleString("ko-KR")} · 최근 ${data.days}일`;
+        renderCards(data);
+        renderDaily(data.daily);
+        renderFunnel(data.funnel);
+        renderFurniture(data.furnitureItems);
     }
 
     async function load() {

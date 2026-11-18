@@ -44,6 +44,9 @@ class DashboardControllerTest {
                 Instant.parse("2026-11-14T00:00:00Z"),
                 14,
                 new DashboardResponse.Summary(10, 8, 30, 4),
+                new DashboardResponse.Funnel(5, 4, 3, 1),
+                new DashboardResponse.Analysis(10, 8, 1, 0, 1, 11.5, 24.5),
+                List.of(new DashboardResponse.FurnitureItems("fridge", "냉장고", 3)),
                 List.of(new DashboardResponse.Daily(LocalDate.of(2026, 11, 14), 2, 5))
         ));
     }

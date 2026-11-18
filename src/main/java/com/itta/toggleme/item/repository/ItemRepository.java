@@ -1,6 +1,7 @@
 package com.itta.toggleme.item.repository;
 
 import com.itta.toggleme.item.domain.Item;
+import com.itta.toggleme.member.domain.MemberStatus;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,6 +34,33 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
     @Query("select item.createdAt from Item item where item.createdAt >= :from")
     List<Instant> findCreatedAtSince(@Param("from") Instant from);
+
+    // 기간 안에 가입한 회원마다 기록한 서로 다른 날짜 수. 기록이 없는 회원은 행이 없다
+    @Query("""
+            select count(distinct item.recordedOn) from Item item
+            where item.member.createdAt >= :from and item.member.status = :status
+            group by item.member.id
+            """)
+    List<Long> countRecordedDaysPerMemberJoinedSince(@Param("from") Instant from, @Param("status") MemberStatus status);
+
+    // 사용 중인 가구마다 기간 안의 기록 수. 기록이 없는 가구도 0으로 나온다
+    @Query("""
+            select type.code as code, type.name as name, count(item) as items
+            from FurnitureType type
+            left join Item item on item.furnitureType = type and item.createdAt >= :from
+            where type.status = com.itta.toggleme.room.domain.CatalogStatus.ACTIVE
+            group by type.id, type.code, type.name, type.displayOrder
+            order by count(item) desc, type.displayOrder
+            """)
+    List<FurnitureItemCount> countByFurnitureTypeSince(@Param("from") Instant from);
+
+    interface FurnitureItemCount {
+        String getCode();
+
+        String getName();
+
+        long getItems();
+    }
 
     // 가구별 기록 목록, 최근에 올린 순. before가 있으면 그 id보다 앞선 기록부터
     @Query("""

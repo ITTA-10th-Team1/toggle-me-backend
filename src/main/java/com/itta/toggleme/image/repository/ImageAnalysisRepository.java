@@ -36,5 +36,21 @@ public interface ImageAnalysisRepository extends JpaRepository<ImageAnalysis, Lo
             @Param("pendingSince") Instant pendingSince
     );
 
+    // 대시보드용. 상태와 시작·끝 시각만 읽는다
+    @Query("""
+            select analysis.status as status, analysis.createdAt as createdAt, analysis.updatedAt as updatedAt
+            from ImageAnalysis analysis
+            where analysis.createdAt >= :from
+            """)
+    List<Timing> findTimingsSince(@Param("from") Instant from);
+
+    interface Timing {
+        ImageAnalysisStatus getStatus();
+
+        Instant getCreatedAt();
+
+        Instant getUpdatedAt();
+    }
+
     long countByMemberIdAndStatusAndCreatedAtAfter(Long memberId, ImageAnalysisStatus status, Instant createdAt);
 }

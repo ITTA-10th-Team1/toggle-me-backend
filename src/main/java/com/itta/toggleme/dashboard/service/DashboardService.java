@@ -2,10 +2,14 @@ package com.itta.toggleme.dashboard.service;
 
 import com.itta.toggleme.dashboard.dto.DashboardResponse;
 import com.itta.toggleme.follow.repository.FollowRepository;
+import com.itta.toggleme.image.domain.ImageAnalysis;
+import com.itta.toggleme.image.domain.ImageAnalysisStatus;
+import com.itta.toggleme.image.repository.ImageAnalysisRepository;
 import com.itta.toggleme.item.repository.ItemRepository;
 import com.itta.toggleme.member.domain.MemberStatus;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.repository.RoomRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -26,6 +30,7 @@ public class DashboardService {
     private final RoomRepository roomRepository;
     private final ItemRepository itemRepository;
     private final FollowRepository followRepository;
+    private final ImageAnalysisRepository imageAnalysisRepository;
 
     public DashboardResponse getDashboard(int days) {
         LocalDate firstDate = LocalDate.now(KST).minusDays(days - 1L);
@@ -48,7 +53,55 @@ public class DashboardService {
                         itemRepository.count(),
                         followRepository.count()
                 ),
+                funnel(from),
+                analysis(from, Instant.now()),
+                itemRepository.countByFurnitureTypeSince(from).stream()
+                        .map(row -> new DashboardResponse.FurnitureItems(row.getCode(), row.getName(), row.getItems()))
+                        .toList(),
                 daily
+        );
+    }
+
+    private DashboardResponse.Funnel funnel(Instant from) {
+        List<Long> recordedDays = itemRepository.countRecordedDaysPerMemberJoinedSince(from, MemberStatus.ACTIVE);
+        return new DashboardResponse.Funnel(
+                memberRepository.countByStatusAndCreatedAtGreaterThanEqual(MemberStatus.ACTIVE, from),
+                memberRepository.countByStatusAndProfileCompletedTrueAndCreatedAtGreaterThanEqual(MemberStatus.ACTIVE, from),
+                recordedDays.size(),
+                recordedDays.stream().filter(days -> days >= 2).count()
+        );
+    }
+
+    // shortcut: 기간 내 분석의 상태·시각만 읽어 묶는다. 수만 건을 넘으면 DB 집계로 바꾼다.
+    private DashboardResponse.Analysis analysis(Instant from, Instant now) {
+        Instant pendingSince = ImageAnalysis.pendingSince(now);
+        long completed = 0;
+        long failed = 0;
+        long pending = 0;
+        long stuck = 0;
+        double totalSeconds = 0;
+        double maxSeconds = 0;
+        List<ImageAnalysisRepository.Timing> timings = imageAnalysisRepository.findTimingsSince(from);
+
+        for (ImageAnalysisRepository.Timing timing : timings) {
+            if (timing.getStatus() == ImageAnalysisStatus.COMPLETED) {
+                double seconds = Duration.between(timing.getCreatedAt(), timing.getUpdatedAt()).toMillis() / 1000.0;
+                completed++;
+                totalSeconds += seconds;
+                maxSeconds = Math.max(maxSeconds, seconds);
+            } else if (timing.getStatus() == ImageAnalysisStatus.FAILED) {
+                failed++;
+            } else if (timing.getCreatedAt().isAfter(pendingSince)) {
+                pending++;
+            } else {
+                stuck++;
+            }
+        }
+
+        return new DashboardResponse.Analysis(
+                timings.size(), completed, failed, pending, stuck,
+                completed == 0 ? null : totalSeconds / completed,
+                completed == 0 ? null : maxSeconds
         );
     }
 
