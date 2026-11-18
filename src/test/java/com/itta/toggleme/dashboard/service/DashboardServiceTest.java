@@ -92,6 +92,19 @@ class DashboardServiceTest {
     }
 
     @Test
+    void 정확히_60초_된_PENDING은_아직_진행_중으로_센다() {
+        Instant now = Instant.parse("2026-11-18T00:00:00Z");
+        when(imageAnalysisRepository.findTimingsSince(any())).thenReturn(List.of(
+                timing(ImageAnalysisStatus.PENDING, now.minusSeconds(60), now.minusSeconds(60)),
+                timing(ImageAnalysisStatus.PENDING, now.minusSeconds(61), now.minusSeconds(61))
+        ));
+
+        var analysis = dashboardService.analysis(Instant.EPOCH, now);
+
+        assertThat(analysis).extracting("pending", "stuck").containsExactly(1L, 1L);
+    }
+
+    @Test
     void 완료된_분석이_없으면_소요_시간은_비어_있다() {
         var analysis = dashboardService.getDashboard(7).imageAnalysis();
 

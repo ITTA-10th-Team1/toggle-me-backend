@@ -72,8 +72,8 @@ public class DashboardService {
         );
     }
 
-    // shortcut: 기간 내 분석의 상태·시각만 읽어 묶는다. 수만 건을 넘으면 DB 집계로 바꾼다.
-    private DashboardResponse.Analysis analysis(Instant from, Instant now) {
+    // shortcut: 기간 내 분석의 상태·시각만 읽어 묶는다. 수만 건을 넘으면 DB 집계로 바꾼다. 경계 테스트를 위해 now를 받는다
+    DashboardResponse.Analysis analysis(Instant from, Instant now) {
         Instant pendingSince = ImageAnalysis.pendingSince(now);
         long completed = 0;
         long failed = 0;
@@ -91,7 +91,8 @@ public class DashboardService {
                 maxSeconds = Math.max(maxSeconds, seconds);
             } else if (timing.getStatus() == ImageAnalysisStatus.FAILED) {
                 failed++;
-            } else if (timing.getCreatedAt().isAfter(pendingSince)) {
+            } else if (!timing.getCreatedAt().isBefore(pendingSince)) {
+                // ImageAnalysis.currentStatus와 같은 경계: 60초를 넘겨야 멈춤이다
                 pending++;
             } else {
                 stuck++;

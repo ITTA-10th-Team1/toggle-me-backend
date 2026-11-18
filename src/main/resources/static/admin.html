@@ -202,9 +202,11 @@
         $("#returned-rate").textContent = percent(funnel.returned, funnel.recorded);
         $("#returned-caption").textContent = `재방문 ${funnel.returned} / 첫 기록 ${funnel.recorded}`;
 
-        $("#analysis-rate").textContent = percent(analysis.completed, analysis.total);
+        // 아직 진행 중인 요청은 결과가 안 났으니 성공률 분모에서 뺀다
+        const settled = analysis.completed + analysis.failed + analysis.stuck;
+        $("#analysis-rate").textContent = percent(analysis.completed, settled);
         $("#analysis-caption").textContent =
-            `완료 ${analysis.completed} / 요청 ${analysis.total} · 실패 ${analysis.failed} · 멈춤 ${analysis.stuck}`;
+            `완료 ${analysis.completed} / 끝난 요청 ${settled} · 실패 ${analysis.failed} · 멈춤 ${analysis.stuck}`;
         $("#analysis-time").textContent = seconds(analysis.avgSeconds);
         $("#analysis-time-caption").textContent = `최대 ${seconds(analysis.maxSeconds)} · 진행 중 ${analysis.pending}`;
     }
