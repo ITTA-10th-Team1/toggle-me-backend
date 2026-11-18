@@ -3,6 +3,7 @@ package com.itta.toggleme.item.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -24,6 +25,7 @@ class KakaoBookClientTest {
     @Test
     void 표지가_https인_책만_돌려주고_키를_헤더로_보낸다() {
         server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://dapi.kakao.com/v3/search/book?query=")))
+                .andExpect(queryParam("target", "title"))
                 .andExpect(header("Authorization", "KakaoAK rest-key"))
                 .andRespond(withSuccess("""
                         {"meta":{"total_count":3},"documents":[

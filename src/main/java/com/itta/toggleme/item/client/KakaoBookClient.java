@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 카카오 다음 책 검색 API로 검색어(태그)에 맞는 책을 찾는다.
+ * 카카오 다음 책 검색 API로 책 제목(검색어)에 맞는 책을 찾는다.
  * 검색 결과가 없으면 빈 목록이고, 호출 자체가 실패하면 {@link KakaoBookSearchException}을 던진다.
  */
 @Slf4j
@@ -51,6 +51,8 @@ public class KakaoBookClient {
             SearchResponse response = restClient.get()
                     .uri(uri -> uri.path("/v3/search/book")
                             .queryParam("query", "{query}")
+                            // 제목만 대상으로 한다. 기본값은 저자·출판사까지 부분 일치라 엉뚱한 책이 나올 수 있다
+                            .queryParam("target", "title")
                             .queryParam("size", size)
                             .build(query))
                     .retrieve()
