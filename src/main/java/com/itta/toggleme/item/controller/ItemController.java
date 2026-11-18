@@ -1,7 +1,7 @@
 package com.itta.toggleme.item.controller;
 
 import com.itta.toggleme.item.domain.ItemSort;
-import com.itta.toggleme.item.dto.FoodRecommendationResponse;
+import com.itta.toggleme.item.dto.RecommendationResponse;
 import com.itta.toggleme.item.dto.ItemCalendarDayResponse;
 import com.itta.toggleme.item.dto.ItemCreateRequest;
 import com.itta.toggleme.item.dto.ItemResponse;
@@ -79,15 +79,26 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getAll(memberId(jwt), sort, cursor));
     }
 
+    @Operation(summary = "가구별 피드 (내 기록 20개씩. sort=LATEST|OLDEST, 다음 쪽은 마지막 id를 cursor로)")
+    @GetMapping("/feed")
+    public ResponseEntity<List<ItemResponse>> getFeed(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam Long furnitureTypeId,
+            @RequestParam(defaultValue = "LATEST") ItemSort sort,
+            @RequestParam(required = false) Long cursor
+    ) {
+        return ResponseEntity.ok(itemService.getFeed(memberId(jwt), furnitureTypeId, sort, cursor));
+    }
+
     @Operation(summary = "기록 상세 조회 (본인 기록)")
     @GetMapping("/{itemId}")
     public ResponseEntity<ItemResponse> getDetail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long itemId) {
         return ResponseEntity.ok(itemService.getDetail(memberId(jwt), itemId));
     }
 
-    @Operation(summary = "냉장고 기록 AI 추천 (태그와 비슷한 음식 이름·사진, 저장 안 함, 회원당 하루 10회)")
+    @Operation(summary = "기록 추천 (냉장고: 태그와 비슷한 음식 이름·사진 / 책장: AI가 고른 책의 제목·저자·표지·링크, 저장 안 함, 회원당 하루 10회)")
     @PostMapping("/{itemId}/recommendations")
-    public ResponseEntity<List<FoodRecommendationResponse>> recommend(
+    public ResponseEntity<List<RecommendationResponse>> recommend(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long itemId
     ) {

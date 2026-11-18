@@ -90,11 +90,19 @@ public class ItemService {
 
     // 방에서 가구를 눌렀을 때 보는 기록. 꺼진 가구는 404. 주인이 아니면 공개 기록만
     public List<ItemResponse> getRoomItems(Long ownerId, boolean includePrivate, Long furnitureTypeId, Long before) {
-        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(ownerId, RoomStatus.ACTIVE, furnitureTypeId)) {
-            throw new FurnitureTypeNotFoundException();
-        }
+        requireActiveFurniture(ownerId, furnitureTypeId);
         return toResponses(itemRepository.findRoomItems(
                 ownerId, furnitureTypeId, includePrivate, before, Limit.of(ROOM_ITEMS_PAGE_SIZE)));
+    }
+
+    // 내 가구별 피드(비공개 포함, 20개씩). 칸 배치는 프론트가 계산하고 서버는 목록만 준다.
+    // 방에서 꺼진 가구는 404(방 조회와 같은 규칙)
+    public List<ItemResponse> getFeed(Long memberId, Long furnitureTypeId, ItemSort sort, Long cursor) {
+        requireActiveFurniture(memberId, furnitureTypeId);
+        Limit limit = Limit.of(ROOM_ITEMS_PAGE_SIZE);
+        return toResponses(sort == ItemSort.OLDEST
+                ? itemRepository.findMyItemsByFurnitureOldest(memberId, furnitureTypeId, cursor, limit)
+                : itemRepository.findRoomItems(memberId, furnitureTypeId, true, cursor, limit));
     }
 
     @Transactional
@@ -235,6 +243,12 @@ public class ItemService {
 
     private Item findMyItem(Long memberId, Long itemId) {
         return itemRepository.findByIdAndMemberId(itemId, memberId).orElseThrow(ItemNotFoundException::new);
+    }
+
+    private void requireActiveFurniture(Long ownerId, Long furnitureTypeId) {
+        if (!roomFurnitureRepository.existsActiveByOwnerIdAndFurnitureTypeId(ownerId, RoomStatus.ACTIVE, furnitureTypeId)) {
+            throw new FurnitureTypeNotFoundException();
+        }
     }
 
     private void requireFurnitureType(Long furnitureTypeId) {

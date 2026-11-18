@@ -9,8 +9,8 @@ import java.util.OptionalInt;
  */
 public final class ItemDailyLimit {
 
-    // 냉장고·거울 하루 10장(처음엔 1장이었으나 테스트·사용성을 위해 늘림. 추후 조정)
-    private static final Map<String, Integer> LIMITS = Map.of("fridge", 10, "mirror", 10);
+    // 냉장고·거울·책장 하루 10장(처음엔 1장이었으나 테스트·사용성을 위해 늘림. 추후 조정)
+    private static final Map<String, Integer> LIMITS = Map.of("fridge", 10, "mirror", 10, "bookshelf", 10);
 
     private ItemDailyLimit() {
     }

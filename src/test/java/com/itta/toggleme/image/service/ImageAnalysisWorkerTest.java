@@ -84,6 +84,22 @@ class ImageAnalysisWorkerTest {
         assertThat(analyzeWith(null, modelOutput).searchQueries()).isEmpty();
     }
 
+    @Test
+    void 책장_지침은_책_정보_태그를_안내하고_검색어_규칙은_없다() {
+        String prompt = ImageAnalysisWorker.promptFor(FurnitureType.create("bookshelf", "책장", 3));
+
+        assertThat(prompt).contains("태그 3개").contains("책에 집중").contains("책 제목").contains("장르").contains("분위기");
+        assertThat(prompt).doesNotContain("쇼핑몰").doesNotContain("검색어를");
+    }
+
+    @Test
+    void 책장은_검색어를_저장하지_않는다() {
+        ImageAnalysisResult modelOutput = new ImageAnalysisResult(List.of("#소설"), List.of("가을 베이지 코트"));
+
+        assertThat(analyzeWith("bookshelf", modelOutput).searchQueries()).isEmpty();
+        assertThat(analyzeWith("bookshelf", modelOutput).tags()).containsExactly("#소설");
+    }
+
     private ImageAnalysisResult analyzeWith(String furnitureCode, ImageAnalysisResult modelOutput) {
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         ChatClient.Builder builder = mock(ChatClient.Builder.class);
