@@ -26,4 +26,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("select m.createdAt from Member m where m.createdAt >= :from")
     List<Instant> findCreatedAtSince(@Param("from") Instant from);
+
+    long countByStatusAndCreatedAtGreaterThanEqual(MemberStatus status, Instant from);
+
+    long countByStatusAndProfileCompletedTrueAndCreatedAtGreaterThanEqual(MemberStatus status, Instant from);
 }
