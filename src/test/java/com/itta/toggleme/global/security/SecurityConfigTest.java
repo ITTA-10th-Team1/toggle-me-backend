@@ -2,6 +2,8 @@ package com.itta.toggleme.global.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,5 +50,23 @@ class SecurityConfigTest {
 
         assertThat(jwt.getSubject()).isEqualTo("42");
         assertThat(jwt.getExpiresAt()).isAfter(jwt.getIssuedAt());
+    }
+
+    @Test
+    void 웹앱_출처의_CORS_사전_요청은_허용한다() throws Exception {
+        mockMvc.perform(options("/api/v1/members/me")
+                        .header("Origin", "https://toggleme.site")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "Authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://toggleme.site"));
+    }
+
+    @Test
+    void 허용하지_않은_출처의_CORS_사전_요청은_거부한다() throws Exception {
+        mockMvc.perform(options("/api/v1/members/me")
+                        .header("Origin", "https://evil.example")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
     }
 }
