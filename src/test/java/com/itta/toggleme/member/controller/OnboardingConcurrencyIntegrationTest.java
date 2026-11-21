@@ -29,14 +29,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
@@ -124,7 +122,8 @@ class OnboardingConcurrencyIntegrationTest {
                     roomId)).isEqualTo(1);
             assertThat(jdbcTemplate.queryForObject("select count(*) from room_furniture where floor_id in "
                     + "(select id from room_floor where room_id = ?)", Long.class, roomId))
-                    .isEqualTo(furnitureVariantIds.size());
+                    .isEqualTo(jdbcTemplate.queryForObject(
+                            "select count(*) from furniture_type where status = 'ACTIVE'", Long.class));
             assertThat(jdbcTemplate.queryForObject(
                     "select onboarding_completed from member where id = ?", Boolean.class, memberId)).isTrue();
         } finally {
@@ -145,7 +144,8 @@ class OnboardingConcurrencyIntegrationTest {
         roomStyleIds.add(roomStyleRepository.save(
                 RoomStyle.create(RoomStyleType.FLOOR, "테스트 바닥", "test/floor/" + suffix)).getId());
 
-        for (int i = 0; i < 4; i++) {
+        // 운영 기준 데이터(거울·냉장고)와 합쳐 켜진 가구가 최대 5개를 넘지 않게 2개만 더한다
+        for (int i = 0; i < 2; i++) {
             FurnitureType type = FurnitureType.create("TEST_" + suffix + "_" + i, "테스트 가구 " + i, i);
             type.configurePlacement(Placement.at(i, 0, 0), i);
             furnitureTypeIds.add(furnitureTypeRepository.save(type).getId());
@@ -157,11 +157,8 @@ class OnboardingConcurrencyIntegrationTest {
     }
 
     private MockHttpServletResponse completeOnboarding() throws Exception {
-        String ids = furnitureVariantIds.stream().map(String::valueOf).collect(Collectors.joining(","));
         return mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(memberId))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"furnitureVariantIds\":[" + ids + "],\"visibility\":\"SOCIAL_OFF\"}"))
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(memberId)))
                 .andReturn().getResponse();
     }
 

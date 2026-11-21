@@ -10,10 +10,8 @@ import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.exception.MemberOnboardingAlreadyCompletedException;
 import com.itta.toggleme.member.exception.MemberProfileRequiredException;
 import com.itta.toggleme.member.repository.MemberRepository;
-import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.service.RoomService;
 import java.security.SecureRandom;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -50,13 +48,13 @@ public class MemberService {
     }
 
     @Transactional
-    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
+    public Long completeOnboarding(Long memberId) {
         // 트랜잭션의 첫 DB 읽기여야 동시 요청이 앞선 요청이 만든 방을 본다. 앞에 일반 조회를 추가하지 말 것
         Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
-        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds, visibility);
+        Long roomId = roomService.createRoomWithAllFurniture(member);
         member.completeOnboarding();
         return roomId;
     }

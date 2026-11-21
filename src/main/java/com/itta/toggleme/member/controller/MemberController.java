@@ -1,6 +1,5 @@
 package com.itta.toggleme.member.controller;
 
-import com.itta.toggleme.member.dto.OnboardingRequest;
 import com.itta.toggleme.member.dto.OnboardingResponse;
 import com.itta.toggleme.member.dto.HandleAvailabilityResponse;
 import com.itta.toggleme.member.dto.MemberResponse;
@@ -57,17 +56,10 @@ public class MemberController {
                 Long.valueOf(jwt.getSubject()), request.handle(), request.nickname())));
     }
 
-    @Operation(summary = "온보딩 가구 선택·방 생성")
+    @Operation(summary = "온보딩 완료·방 생성", description = "켜진 가구를 모두 기본 디자인으로 둔 공개 방을 만든다. 요청 본문은 없다")
     @PostMapping("/onboarding")
-    public ResponseEntity<OnboardingResponse> completeOnboarding(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody OnboardingRequest request
-    ) {
-        Long roomId = memberService.completeOnboarding(
-                Long.valueOf(jwt.getSubject()),
-                request.furnitureVariantIds(),
-                request.visibility()
-        );
+    public ResponseEntity<OnboardingResponse> completeOnboarding(@AuthenticationPrincipal Jwt jwt) {
+        Long roomId = memberService.completeOnboarding(Long.valueOf(jwt.getSubject()));
         return ResponseEntity.ok(new OnboardingResponse(roomId));
     }
 }

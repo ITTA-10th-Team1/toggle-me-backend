@@ -73,6 +73,18 @@ public class RoomService {
                 .orElseGet(() -> createRoomWithFirstFloor(owner, variants, visibility));
     }
 
+    // 온보딩은 가구를 고르지 않는다. 켜진 가구마다 첫 디자인으로 공개 방을 만들고, 빼기는 방 편집에서 한다
+    @Transactional
+    public Long createRoomWithAllFurniture(Member owner) {
+        List<Long> variantIds = findActiveFurnitureTypes().stream()
+                .map(type -> furnitureVariantRepository
+                        .findFirstByFurnitureTypeIdAndStatusOrderById(type.getId(), CatalogStatus.ACTIVE)
+                        .orElseThrow(FurnitureVariantNotFoundException::new)
+                        .getId())
+                .toList();
+        return createDefaultRoom(owner, variantIds, RoomVisibility.SOCIAL_ON);
+    }
+
     public List<RoomResponse> getMyRooms(Long memberId) {
         return roomRepository.findAllByOwnerIdAndStatusOrderById(memberId, RoomStatus.ACTIVE).stream()
                 .map(RoomResponse::from)
