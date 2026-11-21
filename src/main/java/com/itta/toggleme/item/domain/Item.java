@@ -60,8 +60,13 @@ public class Item extends BaseTimeEntity {
         this.furnitureType = furnitureType;
         this.recordedOn = recordedOn;
         this.imageKey = imageKey;
-        this.memo = memo;
+        this.memo = blankToNull(memo);
         this.visibility = visibility;
+    }
+
+    // 메모가 없다는 표현은 null 하나로 맞춘다. 내용이 있는 메모는 공백을 포함해 그대로 둔다
+    private static String blankToNull(String memo) {
+        return memo == null || memo.isBlank() ? null : memo;
     }
 
     public static Item record(
@@ -83,7 +88,7 @@ public class Item extends BaseTimeEntity {
     // null은 바꾸지 않는다. 메모는 빈 문자열(공백 포함)을 주면 지운다
     public void update(String memo, ItemVisibility visibility) {
         if (memo != null) {
-            this.memo = memo.isBlank() ? null : memo;
+            this.memo = blankToNull(memo);
         }
         if (visibility != null) {
             this.visibility = visibility;
