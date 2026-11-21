@@ -36,7 +36,7 @@ public class DashboardSecurityConfig {
         }
 
         http
-                .securityMatcher("/admin.html", "/api/v1/admin/dashboard")
+                .securityMatcher("/admin.html", "/api/v1/admin/dashboard", "/actuator/prometheus")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("DASHBOARD"))
                 .httpBasic(Customizer.withDefaults())
