@@ -63,7 +63,12 @@ public enum ErrorCode {
     ITEM_RECOMMENDATION_UNSUPPORTED(HttpStatus.BAD_REQUEST, "이 가구는 AI 추천을 지원하지 않습니다."),
     ITEM_RECOMMENDATION_TAG_REQUIRED(HttpStatus.BAD_REQUEST, "태그가 있는 기록만 AI 추천을 받을 수 있습니다."),
     ITEM_RECOMMENDATION_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 AI 추천 횟수를 모두 사용했습니다."),
-    ITEM_RECOMMENDATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "추천을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    ITEM_RECOMMENDATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "추천을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요."),
+
+    // taste profile
+    TASTE_PROFILE_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "최근 30일 공개 기록이 5개 이상이어야 취향 분석을 받을 수 있습니다."),
+    TASTE_PROFILE_SUMMARY_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "취향 분석을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요."),
+    TASTE_PROFILE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 취향 분석 횟수를 모두 사용했습니다.");
 
     private final HttpStatus status;
     private final String message;
