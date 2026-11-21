@@ -32,6 +32,13 @@ server:
   tomcat:
     redirect-context-root: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # prometheus는 Grafana Cloud가 가져간다. 대시보드 관리자 계정(HTTP Basic)으로 막는다(DashboardSecurityConfig)
+        include: health, prometheus
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiry: 30m
