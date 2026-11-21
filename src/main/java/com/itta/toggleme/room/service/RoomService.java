@@ -73,9 +73,9 @@ public class RoomService {
                 .orElseGet(() -> createRoomWithFirstFloor(owner, variants, visibility));
     }
 
-    // MVP는 가구 선택 화면이 없어 켜진 가구마다 첫 디자인으로 방을 만든다. 선택 화면이 생기면 지운다
+    // 온보딩은 가구를 고르지 않는다. 켜진 가구마다 첫 디자인으로 공개 방을 만들고, 빼기는 방 편집에서 한다
     @Transactional
-    public Long createMvpDefaultRoom(Member owner) {
+    public Long createRoomWithAllFurniture(Member owner) {
         List<Long> variantIds = findActiveFurnitureTypes().stream()
                 .map(type -> furnitureVariantRepository
                         .findFirstByFurnitureTypeIdAndStatusOrderById(type.getId(), CatalogStatus.ACTIVE)

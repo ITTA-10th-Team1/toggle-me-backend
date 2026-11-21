@@ -10,10 +10,8 @@ import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.exception.MemberOnboardingAlreadyCompletedException;
 import com.itta.toggleme.member.exception.MemberProfileRequiredException;
 import com.itta.toggleme.member.repository.MemberRepository;
-import com.itta.toggleme.room.domain.RoomVisibility;
 import com.itta.toggleme.room.service.RoomService;
 import java.security.SecureRandom;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -50,13 +48,13 @@ public class MemberService {
     }
 
     @Transactional
-    public Long completeOnboarding(Long memberId, List<Long> furnitureVariantIds, RoomVisibility visibility) {
+    public Long completeOnboarding(Long memberId) {
         // 트랜잭션의 첫 DB 읽기여야 동시 요청이 앞선 요청이 만든 방을 본다. 앞에 일반 조회를 추가하지 말 것
         Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
         if (!member.isProfileCompleted()) {
             throw new MemberProfileRequiredException();
         }
-        Long roomId = roomService.createDefaultRoom(member, furnitureVariantIds, visibility);
+        Long roomId = roomService.createRoomWithAllFurniture(member);
         member.completeOnboarding();
         return roomId;
     }
@@ -81,8 +79,7 @@ public class MemberService {
 
     @Transactional
     public Member updateProfile(Long memberId, String rawHandle, String rawNickname) {
-        // 프로필 저장과 함께 방을 만들므로 온보딩과 같은 잠금을 건다(동시 요청에 방이 두 개 생기지 않게)
-        Member member = memberRepository.findByIdForUpdate(memberId).orElseThrow(MemberNotFoundException::new);
+        Member member = getMember(memberId);
         if (member.isProfileCompleted() && member.isOnboardingCompleted()) {
             throw new MemberOnboardingAlreadyCompletedException();
         }
@@ -104,9 +101,6 @@ public class MemberService {
         } catch (DataIntegrityViolationException e) {
             throw new HandleAlreadyExistsException();
         }
-        // MVP는 가구 선택 단계를 건너뛰고 바로 방을 만든다. 선택 화면이 생기면 이 두 줄을 지운다
-        roomService.createMvpDefaultRoom(member);
-        member.completeOnboarding();
         return member;
     }
 

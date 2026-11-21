@@ -1,6 +1,7 @@
 package com.itta.toggleme.item.repository;
 
 import com.itta.toggleme.item.domain.Item;
+import com.itta.toggleme.item.domain.ItemVisibility;
 import com.itta.toggleme.member.domain.MemberStatus;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,6 +30,9 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     Optional<Item> findByIdAndMemberId(Long id, Long memberId);
 
     boolean existsByImageKey(String imageKey);
+
+    long countByMemberIdAndVisibilityAndRecordedOnBetween(
+            Long memberId, ItemVisibility visibility, LocalDate from, LocalDate to);
 
     long countByMemberIdAndFurnitureTypeIdAndRecordedOn(Long memberId, Long furnitureTypeId, LocalDate recordedOn);
 

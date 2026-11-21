@@ -63,6 +63,15 @@ class SecurityConfigTest {
     }
 
     @Test
+    void Flutter_웹_로컬_개발_서버는_포트와_상관없이_허용한다() throws Exception {
+        mockMvc.perform(options("/api/v1/members/me")
+                        .header("Origin", "http://localhost:54321")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:54321"));
+    }
+
+    @Test
     void 허용하지_않은_출처의_CORS_사전_요청은_거부한다() throws Exception {
         mockMvc.perform(options("/api/v1/members/me")
                         .header("Origin", "https://evil.example")

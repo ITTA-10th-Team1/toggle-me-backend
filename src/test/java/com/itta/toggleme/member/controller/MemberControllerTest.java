@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.itta.toggleme.global.security.JwtTokenProvider;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.repository.MemberRepository;
+import com.itta.toggleme.room.domain.CatalogStatus;
 import com.itta.toggleme.room.domain.FurnitureType;
 import com.itta.toggleme.room.domain.FurnitureVariant;
 import com.itta.toggleme.room.domain.Placement;
@@ -24,7 +25,6 @@ import com.itta.toggleme.room.repository.RoomStyleRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,8 +103,7 @@ class MemberControllerTest {
     }
 
     @Test
-    void 프로필을_저장하면_켜진_가구로_공개_방을_만들고_온보딩을_완료한다() throws Exception {
-        List<FurnitureVariant> variants = saveFurnitureVariants(2);
+    void 프로필을_저장하면_다음_온보딩_단계를_응답한다() throws Exception {
         Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
 
         mockMvc.perform(patch("/api/v1/members/me/profile")
@@ -112,13 +111,7 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"step_" + randomSuffix() + "\",\"nickname\":\"토글러\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.onboardingStep").value("DONE"));
-
-        assertThat(roomRepository.findAllByOwnerIdOrderById(incomplete.getId())).singleElement().satisfies(room ->
-                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_ON));
-        assertThat(roomFurnitureRepository.findAll())
-                .extracting(furniture -> furniture.getVariant().getId())
-                .containsAll(variants.stream().map(FurnitureVariant::getId).toList());
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
     }
 
     @Test
@@ -176,13 +169,18 @@ class MemberControllerTest {
     }
 
     @Test
-    void 프로필을_저장하면_핸들과_닉네임을_정리해서_저장한다() throws Exception {
+    void 프로필을_저장하고_같은_값으로_다시_저장할_수_있다() throws Exception {
         mockMvc.perform(patch("/api/v1/members/me/profile")
                         .header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"  New_Name  \",\"nickname\":\" 지인 \"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.handle").value("new_name"))
                 .andExpect(jsonPath("$.nickname").value("지인"));
+        mockMvc.perform(patch("/api/v1/members/me/profile")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"handle\":\"new_name\",\"nickname\":\"지인\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -210,8 +208,7 @@ class MemberControllerTest {
     void 프로필을_저장하지_않으면_가구_온보딩은_409다() throws Exception {
         Member incomplete = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
         mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId()))
-                        .contentType(MediaType.APPLICATION_JSON).content(requestBody(List.of(1L, 2L, 3L, 4L))))
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(incomplete.getId())))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEMBER_PROFILE_REQUIRED"));
     }
 
@@ -235,125 +232,47 @@ class MemberControllerTest {
     }
 
     @Test
-    void 온보딩을_완료하면_방과_선택한_가구만_생성한다() throws Exception {
-        List<FurnitureVariant> variants = saveFurnitureVariants(5);
-        List<Long> selectedIds = variants.subList(0, 4).stream().map(FurnitureVariant::getId).toList();
+    void 온보딩을_완료하면_켜진_가구를_모두_둔_공개_방을_만든다() throws Exception {
+        saveFurnitureVariants(2);
+        int activeTypes = furnitureTypeRepository.findAllByStatusOrderByDisplayOrder(CatalogStatus.ACTIVE).size();
 
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds, "\"SOCIAL_OFF\"")))
+        mockMvc.perform(post("/api/v1/members/onboarding").header("Authorization", bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").isNumber());
 
         assertThat(member.isOnboardingCompleted()).isTrue();
         assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).singleElement().satisfies(room ->
-                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_OFF));
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_ON));
         assertThat(roomFurnitureRepository.findAll())
-                .hasSize(4)
-                .allSatisfy(furniture -> assertThat(furniture.getPlacement()).isNotNull());
+                .hasSize(activeTypes)
+                .allSatisfy(furniture -> assertThat(furniture.isActive()).isTrue());
     }
 
     @Test
-    void 가구_2개로_온보딩할_수_있다() throws Exception {
-        List<Long> selectedIds = saveFurnitureVariants(2).stream().map(FurnitureVariant::getId).toList();
+    void 예전처럼_본문을_보내도_무시하고_모든_가구를_둔다() throws Exception {
+        saveFurnitureVariants(2);
+        int activeTypes = furnitureTypeRepository.findAllByStatusOrderByDisplayOrder(CatalogStatus.ACTIVE).size();
 
         mockMvc.perform(post("/api/v1/members/onboarding")
                         .header("Authorization", bearer())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
+                        .content("{\"furnitureVariantIds\":[1],\"visibility\":\"SOCIAL_OFF\"}"))
                 .andExpect(status().isOk());
 
-        assertThat(roomFurnitureRepository.findAll()).hasSize(2);
+        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).singleElement().satisfies(room ->
+                assertThat(room.getVisibility()).isEqualTo(RoomVisibility.SOCIAL_ON));
+        assertThat(roomFurnitureRepository.findAll()).hasSize(activeTypes);
     }
 
     @Test
-    void 온보딩_공개_설정이_없거나_null이면_400을_반환한다() throws Exception {
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"furnitureVariantIds\":[1,2,3,4]}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
-                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
-
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"furnitureVariantIds\":[1,2,3,4],\"visibility\":null}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[0].field").value("visibility"))
-                .andExpect(jsonPath("$.errors[0].reason").value("공개 설정은 필수입니다."));
-    }
-
-    @Test
-    void 온보딩_공개_설정이_정확한_enum_문자열이_아니면_400을_반환한다() throws Exception {
-        assertInvalidVisibility("\"ON\"");
-        assertInvalidVisibility("\"\"");
-        assertInvalidVisibility("\" SOCIAL_ON \"");
-        assertInvalidVisibility("0");
-    }
-
-    @Test
-    void 가구를_1개만_선택하면_온보딩할_수_없다() throws Exception {
-        List<Long> selectedIds = saveFurnitureVariants(1).stream().map(FurnitureVariant::getId).toList();
-
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[0].field").value("furnitureVariantIds"));
-    }
-
-    @Test
-    void 같은_종류의_디자인을_두_개_선택하면_온보딩할_수_없다() throws Exception {
-        List<FurnitureVariant> variants = saveFurnitureVariants(3);
-        FurnitureType firstType = variants.getFirst().getFurnitureType();
-        FurnitureVariant duplicateTypeVariant = furnitureVariantRepository.save(
-                FurnitureVariant.create(firstType, "다른 디자인", "furniture/duplicate.glb", 1, 1)
-        );
-        List<Long> selectedIds = List.of(
-                variants.get(0).getId(),
-                duplicateTypeVariant.getId(),
-                variants.get(1).getId(),
-                variants.get(2).getId()
-        );
-
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_FURNITURE_SELECTION"));
-
-        assertThat(roomRepository.findAllByOwnerIdOrderById(member.getId())).isEmpty();
-        assertThat(member.isOnboardingCompleted()).isFalse();
-    }
-
-    @Test
-    void 고정_위치가_없는_가구는_배치하지_않는다() throws Exception {
-        List<FurnitureVariant> variants = saveFurnitureVariants(3);
+    void 고정_위치가_없는_켜진_가구가_있으면_방을_만들지_않는다() throws Exception {
+        saveFurnitureVariants(2);
         FurnitureType type = furnitureTypeRepository.save(
                 FurnitureType.create("UNPLACED_" + randomSuffix(), "좌표 미정 가구", 4)
         );
-        FurnitureVariant unplaced = furnitureVariantRepository.save(
-                FurnitureVariant.create(type, "기본 디자인", "furniture/unplaced.glb", 1, 1)
-        );
-        List<Long> selectedIds = List.of(
-                variants.get(0).getId(),
-                variants.get(1).getId(),
-                variants.get(2).getId(),
-                unplaced.getId()
-        );
+        furnitureVariantRepository.save(FurnitureVariant.create(type, "기본 디자인", "furniture/unplaced.glb", 1, 1));
 
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(selectedIds)))
+        mockMvc.perform(post("/api/v1/members/onboarding").header("Authorization", bearer()))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("FURNITURE_PLACEMENT_NOT_CONFIGURED"));
 
@@ -372,25 +291,6 @@ class MemberControllerTest {
             ));
         }
         return variants;
-    }
-
-    private String requestBody(List<Long> ids) {
-        return requestBody(ids, "\"SOCIAL_ON\"");
-    }
-
-    private String requestBody(List<Long> ids, String visibilityJson) {
-        String values = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
-        return "{\"furnitureVariantIds\":[" + values + "],\"visibility\":" + visibilityJson + "}";
-    }
-
-    private void assertInvalidVisibility(String visibilityJson) throws Exception {
-        mockMvc.perform(post("/api/v1/members/onboarding")
-                        .header("Authorization", bearer())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody(List.of(1L, 2L, 3L, 4L), visibilityJson)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     private String bearer() {

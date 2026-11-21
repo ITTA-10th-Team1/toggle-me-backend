@@ -2,8 +2,10 @@ package com.itta.toggleme.item.repository;
 
 import com.itta.toggleme.item.domain.ItemTag;
 import com.itta.toggleme.item.domain.ItemVisibility;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,5 +33,24 @@ public interface ItemTagRepository extends JpaRepository<ItemTag, Long> {
             @Param("roomId") Long roomId,
             @Param("ownerId") Long ownerId,
             @Param("visibility") ItemVisibility visibility
+    );
+
+    // 취향 카드: 기간 안의 공개 기록에 붙은 태그를 가구 구분 없이 합쳐 센다. 많이 나온 순, 동점이면 이름 순
+    // 한 기록의 태그 이름은 서로 달라서(저장할 때 중복 제거) 태그 행 수가 곧 기록 수다
+    @Query("""
+            select new com.itta.toggleme.item.repository.TasteTagCount(tag.name, count(tag))
+            from ItemTag tag join tag.item item
+            where item.member.id = :memberId
+              and item.visibility = :visibility
+              and item.recordedOn between :from and :to
+            group by tag.name
+            order by count(tag) desc, tag.name asc
+            """)
+    List<TasteTagCount> findTasteTagCounts(
+            @Param("memberId") Long memberId,
+            @Param("visibility") ItemVisibility visibility,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            Pageable pageable
     );
 }
