@@ -8,6 +8,7 @@ import com.itta.toggleme.member.exception.HandleReservedException;
 import com.itta.toggleme.member.exception.HandleGenerationFailedException;
 import com.itta.toggleme.member.exception.MemberNotFoundException;
 import com.itta.toggleme.member.exception.MemberOnboardingAlreadyCompletedException;
+import com.itta.toggleme.member.exception.MemberOnboardingRequiredException;
 import com.itta.toggleme.member.exception.MemberProfileRequiredException;
 import com.itta.toggleme.member.repository.MemberRepository;
 import com.itta.toggleme.room.service.RoomService;
@@ -57,6 +58,17 @@ public class MemberService {
         Long roomId = roomService.createRoomWithAllFurniture(member);
         member.completeOnboarding();
         return roomId;
+    }
+
+    // 여러 번 불러도 결과가 같다. 바뀐 행이 없으면 없는 회원(404)·온보딩 전(409)·이미 봄(그대로 성공)을 구분한다
+    @Transactional
+    public void completeTutorial(Long memberId) {
+        if (memberRepository.completeTutorial(memberId) > 0) {
+            return;
+        }
+        if (!getMember(memberId).isOnboardingCompleted()) {
+            throw new MemberOnboardingRequiredException();
+        }
     }
 
     public Member getMember(Long memberId) {
