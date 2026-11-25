@@ -49,6 +49,9 @@ class SmtpEmailSenderIntegrationTest {
     private EmailSender emailSender;
 
     @Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private String email;
@@ -78,6 +81,13 @@ class SmtpEmailSenderIntegrationTest {
     @Test
     void 메일_설정이_있으면_SMTP_발송기를_쓴다() {
         assertThat(emailSender).isInstanceOf(SmtpEmailSender.class);
+    }
+
+    @Test
+    void 메일_서버_연결은_상태_확인에_포함되지_않는다() {
+        // 포함되면 메일 서버 장애나 로그인 거부가 /actuator/health 503이 되어 배포 상태 확인이 실패한다
+        assertThat(applicationContext.getBeanDefinitionNames())
+                .noneMatch(name -> name.toLowerCase().contains("mailhealth"));
     }
 
     @Test
