@@ -126,7 +126,7 @@ class LocalSignUpRequestTest {
     @Test
     void toString에_비밀번호가_포함되지_않는다() {
         LocalSignUpRequest request =
-                new LocalSignUpRequest(VALID_LOGIN_ID, VALID_EMAIL, "secret-password-1", "토글러");
+                new LocalSignUpRequest(VALID_LOGIN_ID, VALID_EMAIL, "verification-token", "secret-password-1", "토글러");
 
         assertThat(request.toString())
                 .contains(VALID_LOGIN_ID)
@@ -135,7 +135,7 @@ class LocalSignUpRequestTest {
     }
 
     private Set<String> violatedFields(String loginId, String email, String password, String nickname) {
-        return VALIDATOR.validate(new LocalSignUpRequest(loginId, email, password, nickname)).stream()
+        return VALIDATOR.validate(new LocalSignUpRequest(loginId, email, "verification-token", password, nickname)).stream()
                 .map(violation -> violation.getPropertyPath().toString())
                 .collect(Collectors.toSet());
     }

@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import java.time.Instant;
 import java.util.Locale;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -33,18 +34,25 @@ public class LocalAccount extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String email;
 
+    private Instant emailVerifiedAt;
+
     @Column(nullable = false, length = 100)
     private String passwordHash;
 
-    private LocalAccount(Member member, String loginId, String email, String passwordHash) {
+    private LocalAccount(Member member, String loginId, String email, Instant emailVerifiedAt,
+                         String passwordHash) {
         this.member = member;
         this.loginId = loginId;
         this.email = email;
+        this.emailVerifiedAt = emailVerifiedAt;
         this.passwordHash = passwordHash;
     }
 
-    public static LocalAccount create(Member member, String loginId, String email, String passwordHash) {
-        return new LocalAccount(member, normalizeLoginId(loginId), normalizeEmail(email), passwordHash);
+    /** 이메일 인증(emailVerifiedAt)을 마친 가입이면 인증 시각을 넘긴다. 인증 도입 전 계정은 null이다. */
+    public static LocalAccount create(Member member, String loginId, String email, Instant emailVerifiedAt,
+                                      String passwordHash) {
+        return new LocalAccount(member, normalizeLoginId(loginId), normalizeEmail(email), emailVerifiedAt,
+                passwordHash);
     }
 
     public static String normalizeLoginId(String loginId) {

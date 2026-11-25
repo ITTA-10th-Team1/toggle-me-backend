@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.itta.toggleme.auth.VerifiedEmailTokens;
+import com.itta.toggleme.auth.repository.EmailVerificationRepository;
 import com.itta.toggleme.member.domain.LocalAccount;
 import com.itta.toggleme.member.repository.LocalAccountRepository;
 import java.util.UUID;
@@ -34,6 +36,9 @@ class LocalSignUpIntegrationTest {
 
     @Autowired
     private LocalAccountRepository localAccountRepository;
+
+    @Autowired
+    private EmailVerificationRepository emailVerificationRepository;
 
     @Test
     void 일반_아이디로_가입하면_201과_토큰을_반환하고_비밀번호는_해시로_저장한다() throws Exception {
@@ -151,14 +156,15 @@ class LocalSignUpIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("loginId", "email", "password")));
+                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("loginId", "email", "emailVerificationToken", "password")));
     }
 
     @Test
     void 이메일을_보내지_않으면_400을_반환한다() throws Exception {
         mockMvc.perform(post(SIGN_UP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(randomLoginId(), PASSWORD)))
+                        .content("{\"loginId\":\"%s\",\"emailVerificationToken\":\"t\",\"password\":\"%s\"}"
+                                .formatted(randomLoginId(), PASSWORD)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("email"));
     }
@@ -210,12 +216,69 @@ class LocalSignUpIntegrationTest {
                 .andExpect(content().string(not(containsString("secret-password-1"))));
     }
 
+    @Test
+    void 이메일_인증_토큰이_없으면_400을_반환한다() throws Exception {
+        mockMvc.perform(post(SIGN_UP_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"loginId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}"
+                                .formatted(randomLoginId(), randomEmail(), PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("emailVerificationToken"));
+    }
+
+    @Test
+    void 알_수_없는_이메일_인증_토큰이면_이메일_인증_필요_오류를_반환한다() throws Exception {
+        String loginId = randomLoginId();
+
+        signUpWithToken(loginId, randomEmail(), "unknown-token", PASSWORD, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EMAIL_VERIFICATION_REQUIRED"));
+
+        assertThat(localAccountRepository.existsByLoginId(loginId)).isFalse();
+    }
+
+    @Test
+    void 다른_이메일로_받은_토큰으로는_가입할_수_없다() throws Exception {
+        String token = VerifiedEmailTokens.issue(emailVerificationRepository, randomEmail());
+
+        signUpWithToken(randomLoginId(), randomEmail(), token, PASSWORD, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EMAIL_VERIFICATION_REQUIRED"));
+    }
+
+    @Test
+    void 이미_가입에_쓴_토큰은_다시_쓸_수_없다() throws Exception {
+        String email = randomEmail();
+        String token = VerifiedEmailTokens.issue(emailVerificationRepository, email);
+
+        signUpWithToken(randomLoginId(), email, token, PASSWORD, null).andExpect(status().isCreated());
+        signUpWithToken(randomLoginId(), email, token, PASSWORD, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void 인증을_마친_가입은_이메일_인증_시각이_저장된다() throws Exception {
+        String loginId = randomLoginId();
+
+        signUp(loginId, randomEmail(), PASSWORD, null).andExpect(status().isCreated());
+
+        assertThat(localAccountRepository.findWithMemberByLoginId(loginId).orElseThrow().getEmailVerifiedAt())
+                .isNotNull();
+    }
+
     private ResultActions signUp(String loginId, String email, String password, String nickname) throws Exception {
+        return signUpWithToken(loginId, email, VerifiedEmailTokens.issue(emailVerificationRepository, email),
+                password, nickname);
+    }
+
+    private ResultActions signUpWithToken(String loginId, String email, String token, String password,
+                                          String nickname) throws Exception {
         String nicknameField = nickname == null ? "" : ",\"nickname\":\"%s\"".formatted(nickname);
         return mockMvc.perform(post(SIGN_UP_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"loginId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"%s}"
-                        .formatted(loginId, email, password, nicknameField)));
+                .content(("{\"loginId\":\"%s\",\"email\":\"%s\",\"emailVerificationToken\":\"%s\","
+                        + "\"password\":\"%s\"%s}").formatted(loginId, email, token, password, nicknameField)));
     }
 
     private String randomLoginId() {

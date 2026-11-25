@@ -13,6 +13,21 @@ spring:
     # 재시도는 Gemini SDK 한 곳에서만 한다(GeminiConfig). 이 값은 재시도 횟수라 2면 SDK 재시도와 곱해져 호출이 늘어난다
     retry:
       max-attempts: 0
+  mail:
+    # 인증 메일 발송(Gmail SMTP). username이 비어 있으면 메일을 보내지 않고 코드를 로그로만 남긴다(로컬 개발용)
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 3000
+          timeout: 5000
+          writetimeout: 5000
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:toggleme}
     username: ${DB_USERNAME}
@@ -37,6 +52,10 @@ cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:https://toggleme.site,https://www.toggleme.site,http://localhost:[*]}
 
 management:
+  health:
+    mail:
+      # 메일 서버 연결을 상태 확인에 넣지 않는다. 포함되면 SMTP 장애·로그인 거부가 /actuator/health 503이 되어 배포가 실패한다
+      enabled: false
   endpoints:
     web:
       exposure:
