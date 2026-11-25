@@ -15,6 +15,7 @@ import com.itta.toggleme.auth.dto.LoginResponse;
 import com.itta.toggleme.auth.dto.TokenResponse;
 import com.itta.toggleme.auth.exception.CredentialsInvalidException;
 import com.itta.toggleme.auth.exception.EmailAlreadyExistsException;
+import com.itta.toggleme.auth.exception.EmailVerificationRequiredException;
 import com.itta.toggleme.auth.exception.LoginIdAlreadyExistsException;
 import com.itta.toggleme.global.exception.ErrorCode;
 import com.itta.toggleme.member.domain.LocalAccount;
@@ -23,6 +24,7 @@ import com.itta.toggleme.member.domain.MemberStatus;
 import com.itta.toggleme.member.repository.LocalAccountRepository;
 import com.itta.toggleme.member.service.MemberService;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +39,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class LocalAuthServiceTest {
 
+    private static final Instant VERIFIED_AT = Instant.parse("2026-11-25T01:00:00Z");
     private static final TokenResponse TOKEN = TokenResponse.of("access-token", "refresh-token", 1800L);
     private static final String LOGIN_ID_CONFLICT =
             "Duplicate entry 'chaeee22' for key 'local_account.uk_local_account_login_id'";
@@ -48,6 +51,9 @@ class LocalAuthServiceTest {
 
     @Mock
     private MemberService memberService;
+
+    @Mock
+    private EmailVerificationService emailVerificationService;
 
     @Mock
     private TokenService tokenService;
@@ -64,13 +70,14 @@ class LocalAuthServiceTest {
         givenAvailableSignUp(member);
         given(tokenService.issue(member)).willReturn(TOKEN);
 
-        LoginResponse response = localAuthService.signUp("  Chaeee22 ", "  User@Example.COM ", "password1", "토글러");
+        LoginResponse response = localAuthService.signUp("  Chaeee22 ", "  User@Example.COM ", "token", "password1", "토글러");
 
         ArgumentCaptor<LocalAccount> captor = ArgumentCaptor.forClass(LocalAccount.class);
         verify(localAccountRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getLoginId()).isEqualTo("chaeee22");
         assertThat(captor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(captor.getValue().getPasswordHash()).isEqualTo("hashed");
+        assertThat(captor.getValue().getEmailVerifiedAt()).isEqualTo(VERIFIED_AT);
         assertThat(captor.getValue().getMember()).isSameAs(member);
         assertThat(response.accessToken()).isEqualTo("access-token");
         assertThat(response.onboardingRequired()).isTrue();
@@ -80,7 +87,7 @@ class LocalAuthServiceTest {
     void 이미_가입된_아이디면_이메일_확인이나_회원_생성_없이_예외를_던진다() {
         given(localAccountRepository.existsByLoginId("chaeee22")).willReturn(true);
 
-        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "password1", "토글러"))
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
                 .isInstanceOf(LoginIdAlreadyExistsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_ID_ALREADY_EXISTS);
 
@@ -94,7 +101,7 @@ class LocalAuthServiceTest {
         given(localAccountRepository.existsByLoginId("chaeee22")).willReturn(false);
         given(localAccountRepository.existsByEmail("user@example.com")).willReturn(true);
 
-        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "password1", "토글러"))
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
                 .isInstanceOf(EmailAlreadyExistsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
 
@@ -108,7 +115,7 @@ class LocalAuthServiceTest {
         givenAvailableSignUp(member);
         givenSaveFailsWith(new DataIntegrityViolationException("duplicate", new SQLException(LOGIN_ID_CONFLICT)));
 
-        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "password1", "토글러"))
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
                 .isInstanceOf(LoginIdAlreadyExistsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_ID_ALREADY_EXISTS);
 
@@ -121,7 +128,7 @@ class LocalAuthServiceTest {
         givenAvailableSignUp(member);
         givenSaveFailsWith(new DataIntegrityViolationException("duplicate", new SQLException(EMAIL_CONFLICT)));
 
-        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "password1", "토글러"))
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
                 .isInstanceOf(EmailAlreadyExistsException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
 
@@ -134,7 +141,7 @@ class LocalAuthServiceTest {
         givenAvailableSignUp(member);
         givenSaveFailsWith(new DataIntegrityViolationException("duplicate"));
 
-        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "password1", "토글러"))
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
                 .isInstanceOf(LoginIdAlreadyExistsException.class);
 
         verifyNoInteractions(tokenService);
@@ -231,9 +238,25 @@ class LocalAuthServiceTest {
         verifyNoInteractions(tokenService);
     }
 
+    @Test
+    void 이메일_인증_토큰이_유효하지_않으면_회원을_만들지_않고_예외를_던진다() {
+        given(localAccountRepository.existsByLoginId("chaeee22")).willReturn(false);
+        given(localAccountRepository.existsByEmail("user@example.com")).willReturn(false);
+        given(emailVerificationService.consumeToken("user@example.com", "token"))
+                .willThrow(new EmailVerificationRequiredException());
+
+        assertThatThrownBy(() -> localAuthService.signUp("chaeee22", "user@example.com", "token", "password1", "토글러"))
+                .isInstanceOf(EmailVerificationRequiredException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_REQUIRED);
+
+        verifyNoInteractions(memberService, tokenService);
+        verify(localAccountRepository, never()).saveAndFlush(any(LocalAccount.class));
+    }
+
     private void givenAvailableSignUp(Member member) {
         given(localAccountRepository.existsByLoginId("chaeee22")).willReturn(false);
         given(localAccountRepository.existsByEmail("user@example.com")).willReturn(false);
+        given(emailVerificationService.consumeToken("user@example.com", "token")).willReturn(VERIFIED_AT);
         given(memberService.register("토글러")).willReturn(member);
         given(passwordEncoder.encode("password1")).willReturn("hashed");
     }
@@ -244,6 +267,6 @@ class LocalAuthServiceTest {
 
     private void givenAccount(Member member, String loginId, String passwordHash) {
         given(localAccountRepository.findWithMemberByLoginId(loginId))
-                .willReturn(Optional.of(LocalAccount.create(member, loginId, "user@example.com", passwordHash)));
+                .willReturn(Optional.of(LocalAccount.create(member, loginId, "user@example.com", null, passwordHash)));
     }
 }

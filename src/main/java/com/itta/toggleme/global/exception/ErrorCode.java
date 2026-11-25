@@ -24,6 +24,14 @@ public enum ErrorCode {
     LOGIN_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     CREDENTIALS_INVALID(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
+    EMAIL_VERIFICATION_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
+    EMAIL_VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다. 코드를 다시 요청해 주세요."),
+    EMAIL_VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS,
+            "인증 코드 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+    EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS,
+            "인증 코드를 여러 번 잘못 입력했습니다. 코드를 다시 요청해 주세요."),
+    EMAIL_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
+    EMAIL_SEND_FAILED(HttpStatus.BAD_GATEWAY, "인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요."),
 
     // member
     HANDLE_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "회원 핸들 생성에 실패했습니다."),

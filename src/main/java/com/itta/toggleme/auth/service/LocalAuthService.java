@@ -9,6 +9,7 @@ import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.domain.MemberStatus;
 import com.itta.toggleme.member.repository.LocalAccountRepository;
 import com.itta.toggleme.member.service.MemberService;
+import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,10 +28,12 @@ public class LocalAuthService {
     private final LocalAccountRepository localAccountRepository;
     private final MemberService memberService;
     private final TokenService tokenService;
+    private final EmailVerificationService emailVerificationService;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public LoginResponse signUp(String loginId, String email, String password, String nickname) {
+    public LoginResponse signUp(String loginId, String email, String emailVerificationToken, String password,
+                                String nickname) {
         String normalizedLoginId = LocalAccount.normalizeLoginId(loginId);
         String normalizedEmail = LocalAccount.normalizeEmail(email);
         if (localAccountRepository.existsByLoginId(normalizedLoginId)) {
@@ -40,8 +43,11 @@ public class LocalAuthService {
             throw new EmailAlreadyExistsException();
         }
 
+        // 가입이 실패해 롤백되면 토큰 소비도 취소되어 같은 토큰으로 다시 시도할 수 있다
+        Instant emailVerifiedAt = emailVerificationService.consumeToken(normalizedEmail, emailVerificationToken);
+
         Member member = memberService.register(nickname);
-        saveAccount(member, normalizedLoginId, normalizedEmail, passwordEncoder.encode(password));
+        saveAccount(member, normalizedLoginId, normalizedEmail, emailVerifiedAt, passwordEncoder.encode(password));
         return LoginResponse.of(tokenService.issue(member), member);
     }
 
@@ -61,9 +67,10 @@ public class LocalAuthService {
         return LoginResponse.of(tokenService.issue(member), member);
     }
 
-    private void saveAccount(Member member, String loginId, String email, String passwordHash) {
+    private void saveAccount(Member member, String loginId, String email, Instant emailVerifiedAt,
+                             String passwordHash) {
         try {
-            localAccountRepository.saveAndFlush(LocalAccount.create(member, loginId, email, passwordHash));
+            localAccountRepository.saveAndFlush(LocalAccount.create(member, loginId, email, emailVerifiedAt, passwordHash));
         } catch (DataIntegrityViolationException e) {
             // 중복 확인과 저장 사이에 같은 값이 먼저 저장된 경우. 어느 unique 제약인지로 구분한다
             throw isEmailConflict(e) ? new EmailAlreadyExistsException() : new LoginIdAlreadyExistsException();

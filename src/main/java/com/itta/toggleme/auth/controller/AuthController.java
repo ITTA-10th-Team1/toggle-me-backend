@@ -38,11 +38,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.loginWithKakao(request.accessToken()));
     }
 
-    @Operation(summary = "자체 회원가입 (가입 즉시 토큰 발급)")
+    @Operation(summary = "자체 회원가입 (이메일 인증 후 받은 verificationToken 필요, 가입 즉시 토큰 발급)")
     @PostMapping("/signup")
     public ResponseEntity<LoginResponse> signUp(@Valid @RequestBody LocalSignUpRequest request) {
         LoginResponse response = localAuthService.signUp(
-                request.loginId(), request.email(), request.password(), request.nickname());
+                request.loginId(), request.email(), request.emailVerificationToken(), request.password(),
+                request.nickname());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

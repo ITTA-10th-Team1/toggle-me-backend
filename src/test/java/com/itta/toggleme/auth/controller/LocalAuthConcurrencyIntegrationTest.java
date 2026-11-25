@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.itta.toggleme.auth.VerifiedEmailTokens;
+import com.itta.toggleme.auth.repository.EmailVerificationRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -43,7 +45,11 @@ class LocalAuthConcurrencyIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private final List<String> createdLoginIds = new ArrayList<>();
+    @Autowired
+    private EmailVerificationRepository emailVerificationRepository;
+
+    private final List<String> createdLoginIds = java.util.Collections.synchronizedList(new ArrayList<>());
+    private final List<String> createdEmails = java.util.Collections.synchronizedList(new ArrayList<>());
 
     private record Outcome(int status, String code) {
     }
@@ -60,6 +66,10 @@ class LocalAuthConcurrencyIntegrationTest {
             }
         }
         createdLoginIds.clear();
+        for (String email : createdEmails) {
+            jdbcTemplate.update("delete from email_verification where email = ?", email);
+        }
+        createdEmails.clear();
     }
 
     @Test
@@ -180,8 +190,10 @@ class LocalAuthConcurrencyIntegrationTest {
     }
 
     private Outcome signUp(String loginId, String email) throws Exception {
-        return send(SIGN_UP_URL, "{\"loginId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}"
-                .formatted(loginId, email, PASSWORD));
+        String token = VerifiedEmailTokens.issue(emailVerificationRepository, email);
+        createdEmails.add(email);
+        return send(SIGN_UP_URL, ("{\"loginId\":\"%s\",\"email\":\"%s\",\"emailVerificationToken\":\"%s\","
+                + "\"password\":\"%s\"}").formatted(loginId, email, token, PASSWORD));
     }
 
     private Outcome login(String loginId) throws Exception {

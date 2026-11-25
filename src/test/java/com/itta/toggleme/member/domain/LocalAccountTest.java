@@ -10,7 +10,7 @@ class LocalAccountTest {
     void 아이디와_이메일은_앞뒤_공백을_제거하고_소문자로_저장한다() {
         Member member = Member.create("user_test0001", "토글러");
 
-        LocalAccount account = LocalAccount.create(member, "  Chaeee22  ", "  Toggle.Me@Example.COM  ", "hash");
+        LocalAccount account = LocalAccount.create(member, "  Chaeee22  ", "  Toggle.Me@Example.COM  ", null, "hash");
 
         assertThat(account.getLoginId()).isEqualTo("chaeee22");
         assertThat(account.getEmail()).isEqualTo("toggle.me@example.com");
@@ -32,7 +32,7 @@ class LocalAccountTest {
     void 비밀번호_해시와_회원을_그대로_보관한다() {
         Member member = Member.create("user_test0002", "토글러");
 
-        LocalAccount account = LocalAccount.create(member, "chaeee22", "a@example.com", "hashed-value");
+        LocalAccount account = LocalAccount.create(member, "chaeee22", "a@example.com", null, "hashed-value");
 
         assertThat(account.getPasswordHash()).isEqualTo("hashed-value");
         assertThat(account.getMember()).isSameAs(member);

@@ -17,6 +17,10 @@ public record LocalSignUpRequest(
         @Size(max = 255, message = "이메일은 255자 이하여야 합니다.")
         String email,
 
+        @NotBlank(message = "이메일 인증이 필요합니다.")
+        @Size(max = 100, message = "이메일 인증 토큰이 올바르지 않습니다.")
+        String emailVerificationToken,
+
         @NotBlank(message = "비밀번호는 필수입니다.")
         @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
         @MaxBytes(value = 72, message = "비밀번호가 너무 깁니다. 영문 72자 또는 한글 24자 이하로 입력해 주세요.")
