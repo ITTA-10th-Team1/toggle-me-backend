@@ -21,6 +21,11 @@ services:
       # 냉장고 AI 추천의 음식 사진 검색. 비어 있으면 추천 사진이 모두 빠진다(서버는 정상 기동)
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      # 운영 프로필. 메일 설정(MAIL_USERNAME·MAIL_PASSWORD)이 비어 있으면 앱이 기동하지 않는다
+      SPRING_PROFILES_ACTIVE: prod
+      # 가입·비밀번호 재설정 인증 메일 발송(Gmail SMTP). MAIL_PASSWORD는 Google 앱 비밀번호
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       ADMIN_DASHBOARD_USERNAME: ${ADMIN_DASHBOARD_USERNAME:-}
       ADMIN_DASHBOARD_PASSWORD: ${ADMIN_DASHBOARD_PASSWORD:-}
       # S3 자격 증명은 EC2 IAM 역할(toggleme-ec2-role)로 받는다. 컨테이너에서 쓰려면 메타데이터 홉 제한이 2여야 한다

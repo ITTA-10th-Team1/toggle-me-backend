@@ -2,14 +2,16 @@ package com.itta.toggleme.auth.client;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
  * MAIL_USERNAME이 없을 때 쓰는 개발용 발송기. 메일을 보내지 않고 코드를 로그로 남긴다.
- * 운영에서 메일 설정을 빠뜨리면 코드가 서버 로그에 남으므로 기동 때 경고한다.
+ * 운영(prod)에서는 쓰지 않고, 메일 설정이 없으면 {@link ProductionMailGuard}가 기동을 막는다.
  */
 @Slf4j
 @Component
+@Profile("!prod")
 @ConditionalOnExpression("'${spring.mail.username:}'.isBlank()")
 public class LogEmailSender implements EmailSender {
 
