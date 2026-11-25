@@ -55,6 +55,17 @@ public class LocalAccount extends BaseTimeEntity {
                 passwordHash);
     }
 
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    /** 이메일 인증을 아직 안 한 계정이 코드 확인을 통과하면 인증 시각을 남긴다. */
+    public void markEmailVerified(Instant now) {
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = now;
+        }
+    }
+
     public static String normalizeLoginId(String loginId) {
         return normalize(loginId);
     }

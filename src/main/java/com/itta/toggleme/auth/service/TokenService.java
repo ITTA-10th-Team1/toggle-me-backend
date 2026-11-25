@@ -61,6 +61,12 @@ public class TokenService {
                 .ifPresent(token -> token.revoke(Instant.now()));
     }
 
+    /** 비밀번호를 바꾼 뒤처럼 회원의 모든 기기를 로그아웃시킨다. 이미 발급된 Access Token은 만료(최대 30분)까지 유효하다. */
+    @Transactional
+    public void revokeAll(Long memberId) {
+        refreshTokenRepository.revokeAllActiveByMemberId(memberId, Instant.now());
+    }
+
     private TokenResponse issue(Member member, String sessionId) {
         String accessToken = jwtTokenProvider.createAccessToken(member.getId());
         String refreshToken = generateRefreshToken();

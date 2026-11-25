@@ -37,6 +37,17 @@ class SmtpEmailSenderTest {
     }
 
     @Test
+    void 비밀번호_재설정_코드는_다른_제목으로_보낸다() {
+        sender.sendPasswordResetCode("user@example.com", "654321");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getSubject()).contains("비밀번호 재설정");
+        assertThat(captor.getValue().getText()).contains("654321");
+        assertThat(captor.getValue().getTo()).containsExactly("user@example.com");
+    }
+
+    @Test
     void 발송에_실패하면_발송_실패_예외로_바꾸고_코드와_주소를_로그에_남기지_않는다() {
         Logger logger = (Logger) LoggerFactory.getLogger(SmtpEmailSender.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();

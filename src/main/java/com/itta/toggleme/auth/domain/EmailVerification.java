@@ -3,6 +3,8 @@ package com.itta.toggleme.auth.domain;
 import com.itta.toggleme.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,6 +29,10 @@ public class EmailVerification extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EmailVerificationPurpose purpose;
+
     @Column(nullable = false, length = 64)
     private String codeHash;
 
@@ -45,14 +51,16 @@ public class EmailVerification extends BaseTimeEntity {
 
     private Instant consumedAt;
 
-    private EmailVerification(String email, String codeHash, Instant expiresAt) {
+    private EmailVerification(String email, EmailVerificationPurpose purpose, String codeHash, Instant expiresAt) {
         this.email = email;
+        this.purpose = purpose;
         this.codeHash = codeHash;
         this.expiresAt = expiresAt;
     }
 
-    public static EmailVerification issue(String email, String codeHash, Instant expiresAt) {
-        return new EmailVerification(email, codeHash, expiresAt);
+    public static EmailVerification issue(String email, EmailVerificationPurpose purpose, String codeHash,
+                                          Instant expiresAt) {
+        return new EmailVerification(email, purpose, codeHash, expiresAt);
     }
 
     public boolean isCodeExpired(Instant now) {
@@ -65,6 +73,11 @@ public class EmailVerification extends BaseTimeEntity {
 
     public void recordFailure() {
         failedAttempts++;
+    }
+
+    /** 코드를 맞혔다고 표시한다. 토큰이 필요 없는 흐름(비밀번호 재설정)에서 쓴다. */
+    public void markVerified(Instant now) {
+        this.verifiedAt = now;
     }
 
     public void markVerified(String tokenHash, Instant tokenExpiresAt, Instant now) {
