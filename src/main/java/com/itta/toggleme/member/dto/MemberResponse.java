@@ -8,7 +8,8 @@ public record MemberResponse(
         String handle,
         String nickname,
         boolean profileCompleted,
-        OnboardingStep onboardingStep
+        OnboardingStep onboardingStep,
+        boolean tutorialCompleted
 ) {
     public static MemberResponse from(Member member) {
         return new MemberResponse(
@@ -16,7 +17,8 @@ public record MemberResponse(
                 member.getHandle(),
                 member.getNickname(),
                 member.isProfileCompleted(),
-                member.getOnboardingStep()
+                member.getOnboardingStep(),
+                member.isTutorialCompleted()
         );
     }
 }

@@ -33,6 +33,7 @@ public enum ErrorCode {
     HANDLE_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 핸들입니다."),
     MEMBER_PROFILE_REQUIRED(HttpStatus.CONFLICT, "프로필 설정을 먼저 완료해야 합니다."),
     MEMBER_ONBOARDING_ALREADY_COMPLETED(HttpStatus.CONFLICT, "온보딩이 완료된 회원은 프로필을 변경할 수 없습니다."),
+    MEMBER_ONBOARDING_REQUIRED(HttpStatus.CONFLICT, "온보딩을 먼저 완료해야 합니다."),
 
     // follow
     FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 팔로우할 수 없습니다."),
