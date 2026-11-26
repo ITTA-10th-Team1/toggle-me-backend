@@ -36,6 +36,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/email-verifications",
                                 "/api/v1/auth/email-verifications/confirm")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/login-id-availability").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

@@ -51,6 +51,11 @@ public class LocalAuthService {
         return LoginResponse.of(tokenService.issue(member), member);
     }
 
+    /** 가입 전 중복확인용. 확인 뒤 가입 전에 다른 사람이 먼저 가입할 수 있어 가입 API의 409 확인은 그대로 둔다. */
+    public boolean isLoginIdAvailable(String loginId) {
+        return !localAccountRepository.existsByLoginId(LocalAccount.normalizeLoginId(loginId));
+    }
+
     @Transactional
     public LoginResponse login(String loginId, String password) {
         Optional<LocalAccount> found = localAccountRepository.findWithMemberByLoginId(
