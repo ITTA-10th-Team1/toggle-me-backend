@@ -19,11 +19,14 @@ class RoomTagServiceTest {
     private long nextItemId = 1;
 
     @Test
-    void 가구_안에서는_많이_붙은_태그를_고른다() {
+    void 가구_안에서는_많이_붙은_태그부터_고른다() {
         item(DESK, "2026-10-28", "추리", "외국소설");
         item(DESK, "2026-10-30", "추리", "스릴러");
 
-        assertThat(select()).containsExactly(new RoomTagResponse(DESK, "추리"));
+        assertThat(select()).containsExactly(
+                new RoomTagResponse(DESK, "추리"),
+                new RoomTagResponse(DESK, "스릴러"),
+                new RoomTagResponse(DESK, "외국소설"));
     }
 
     @Test
@@ -32,18 +35,26 @@ class RoomTagServiceTest {
         item(DESK, "2026-10-30", "추리", "한국소설", "스릴러");
         item(DESK, "2026-10-31", "에세이", "한국소설", "힐링");
 
-        assertThat(select()).containsExactly(new RoomTagResponse(DESK, "한국소설"));
+        assertThat(select()).containsExactly(
+                new RoomTagResponse(DESK, "한국소설"),
+                new RoomTagResponse(DESK, "추리"),
+                new RoomTagResponse(DESK, "에세이"),
+                new RoomTagResponse(DESK, "힐링"),
+                new RoomTagResponse(DESK, "스릴러"));
     }
 
     @Test
-    void 아이템이_하나면_앞_순서_태그를_고른다() {
+    void 아이템이_하나면_앞_순서부터_고른다() {
         item(VANITY, "2026-10-31", "데일리", "캐주얼", "봄");
 
-        assertThat(select()).containsExactly(new RoomTagResponse(VANITY, "데일리"));
+        assertThat(select()).containsExactly(
+                new RoomTagResponse(VANITY, "데일리"),
+                new RoomTagResponse(VANITY, "캐주얼"),
+                new RoomTagResponse(VANITY, "봄"));
     }
 
     @Test
-    void 최근에_기록한_가구부터_고르고_이미_뽑힌_태그는_건너뛴다() {
+    void 최근에_기록한_가구부터_대표_태그를_고르고_이미_뽑힌_태그는_건너뛴다() {
         item(DESK, "2026-10-31", "추리", "한국소설");
         item(TV, "2026-11-01", "추리", "스릴러");
         item(VANITY, "2026-10-20", "데일리");
@@ -51,7 +62,21 @@ class RoomTagServiceTest {
         assertThat(select()).containsExactly(
                 new RoomTagResponse(TV, "추리"),
                 new RoomTagResponse(DESK, "한국소설"),
-                new RoomTagResponse(VANITY, "데일리"));
+                new RoomTagResponse(VANITY, "데일리"),
+                new RoomTagResponse(TV, "스릴러"));
+    }
+
+    @Test
+    void 가구마다_돌아가며_고르고_방_전체는_최대_5개다() {
+        item(TV, "2026-11-01", "추리", "스릴러", "공포");
+        item(DESK, "2026-10-31", "추리", "한국소설", "에세이", "힐링");
+
+        assertThat(select()).containsExactly(
+                new RoomTagResponse(TV, "추리"),
+                new RoomTagResponse(DESK, "한국소설"),
+                new RoomTagResponse(TV, "스릴러"),
+                new RoomTagResponse(DESK, "에세이"),
+                new RoomTagResponse(TV, "공포"));
     }
 
     @Test
