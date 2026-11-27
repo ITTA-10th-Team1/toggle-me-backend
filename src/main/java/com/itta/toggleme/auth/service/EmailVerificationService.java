@@ -2,6 +2,7 @@ package com.itta.toggleme.auth.service;
 
 import com.itta.toggleme.auth.client.EmailSender;
 import com.itta.toggleme.auth.domain.EmailVerification;
+import com.itta.toggleme.auth.domain.EmailVerificationPurpose;
 import com.itta.toggleme.auth.exception.EmailAlreadyExistsException;
 import com.itta.toggleme.auth.exception.EmailVerificationCodeExpiredException;
 import com.itta.toggleme.auth.exception.EmailVerificationCodeInvalidException;
@@ -43,28 +44,38 @@ public class EmailVerificationService {
     private final EmailSender emailSender;
     private final SecureRandom random = new SecureRandom();
 
-    /** 코드를 저장하고 메일을 보낸다. 메일 발송이 실패하면 저장도 함께 취소돼 재요청 대기 시간이 생기지 않는다. */
+    /** 가입용 코드를 저장하고 메일을 보낸다. 메일 발송이 실패하면 저장도 함께 취소돼 재요청 대기 시간이 생기지 않는다. */
     @Transactional
     public void requestCode(String rawEmail) {
         String email = LocalAccount.normalizeEmail(rawEmail);
         if (localAccountRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistsException();
         }
+        issueCode(email, EmailVerificationPurpose.SIGNUP);
+    }
+
+    /** 이미 정규화된 이메일에 코드를 만들어 보낸다. 재요청 간격과 시간당 횟수는 용도별로 센다. */
+    @Transactional
+    public void issueCode(String email, EmailVerificationPurpose purpose) {
         Instant now = Instant.now();
-        emailVerificationRepository.findFirstByEmailOrderByIdDesc(email)
+        emailVerificationRepository.findFirstByEmailAndPurposeOrderByIdDesc(email, purpose)
                 .filter(latest -> latest.getCreatedAt().isAfter(now.minus(RESEND_INTERVAL)))
                 .ifPresent(latest -> {
                     throw new EmailVerificationTooManyRequestsException();
                 });
-        if (emailVerificationRepository.countByEmailAndCreatedAtAfter(email, now.minus(HOURLY_WINDOW))
-                >= MAX_REQUESTS_PER_HOUR) {
+        if (emailVerificationRepository.countByEmailAndPurposeAndCreatedAtAfter(email, purpose,
+                now.minus(HOURLY_WINDOW)) >= MAX_REQUESTS_PER_HOUR) {
             throw new EmailVerificationTooManyRequestsException();
         }
 
         String code = String.format("%06d", random.nextInt(1_000_000));
         emailVerificationRepository.saveAndFlush(
-                EmailVerification.issue(email, hashCode(email, code), now.plus(CODE_TTL)));
-        emailSender.sendVerificationCode(email, code);
+                EmailVerification.issue(email, purpose, hashCode(email, code), now.plus(CODE_TTL)));
+        if (purpose == EmailVerificationPurpose.PASSWORD_RESET) {
+            emailSender.sendPasswordResetCode(email, code);
+        } else {
+            emailSender.sendVerificationCode(email, code);
+        }
     }
 
     /** 코드가 맞으면 가입에 쓸 1회용 토큰을 돌려준다. 틀린 횟수는 예외가 나도 남겨야 해서 롤백하지 않는다. */
@@ -72,7 +83,22 @@ public class EmailVerificationService {
     public String confirmCode(String rawEmail, String code) {
         String email = LocalAccount.normalizeEmail(rawEmail);
         Instant now = Instant.now();
-        EmailVerification verification = emailVerificationRepository.findLatestByEmailForUpdate(email)
+        EmailVerification verification = checkCode(email, code, EmailVerificationPurpose.SIGNUP, now);
+
+        String token = newToken();
+        verification.markVerified(TokenService.hash(token), now.plus(TOKEN_TTL), now);
+        return token;
+    }
+
+    /** 코드만 확인하고 토큰은 만들지 않는다. 확인을 마친 코드는 다시 쓸 수 없다. 이메일은 정규화된 값이어야 한다. */
+    @Transactional(noRollbackFor = BusinessException.class)
+    public void verifyCode(String email, String code, EmailVerificationPurpose purpose) {
+        Instant now = Instant.now();
+        checkCode(email, code, purpose, now).markVerified(now);
+    }
+
+    private EmailVerification checkCode(String email, String code, EmailVerificationPurpose purpose, Instant now) {
+        EmailVerification verification = emailVerificationRepository.findLatestForUpdate(email, purpose)
                 .orElseThrow(EmailVerificationCodeInvalidException::new);
 
         if (verification.isVerified()) {
@@ -89,10 +115,7 @@ public class EmailVerificationService {
             verification.recordFailure();
             throw new EmailVerificationCodeInvalidException();
         }
-
-        String token = newToken();
-        verification.markVerified(TokenService.hash(token), now.plus(TOKEN_TTL), now);
-        return token;
+        return verification;
     }
 
     /** 가입 트랜잭션 안에서 호출한다. 가입이 실패해 롤백되면 토큰 소비도 함께 취소된다. */
@@ -102,6 +125,7 @@ public class EmailVerificationService {
         Instant now = Instant.now();
         EmailVerification verification = emailVerificationRepository
                 .findByTokenHashForUpdate(TokenService.hash(token))
+                .filter(found -> found.getPurpose() == EmailVerificationPurpose.SIGNUP)
                 .filter(found -> found.getEmail().equals(email))
                 .filter(found -> found.isTokenUsable(now))
                 .orElseThrow(EmailVerificationRequiredException::new);

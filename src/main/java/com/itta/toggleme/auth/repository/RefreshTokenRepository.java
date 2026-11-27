@@ -24,4 +24,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             where rt.sessionId = :sessionId and rt.revokedAt is null
             """)
     int revokeAllActiveInSession(String sessionId, Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update RefreshToken rt
+            set rt.revokedAt = :now, rt.updatedAt = :now
+            where rt.member.id = :memberId and rt.revokedAt is null
+            """)
+    int revokeAllActiveByMemberId(Long memberId, Instant now);
 }

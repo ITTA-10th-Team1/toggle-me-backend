@@ -23,4 +23,9 @@ public class LogEmailSender implements EmailSender {
     public void sendVerificationCode(String to, String code) {
         log.info("[개발용] 이메일 인증 코드 to={} code={}", to, code);
     }
+
+    @Override
+    public void sendPasswordResetCode(String to, String code) {
+        log.info("[개발용] 비밀번호 재설정 코드 to={} code={}", to, code);
+    }
 }

@@ -1,6 +1,7 @@
 package com.itta.toggleme.auth;
 
 import com.itta.toggleme.auth.domain.EmailVerification;
+import com.itta.toggleme.auth.domain.EmailVerificationPurpose;
 import com.itta.toggleme.auth.repository.EmailVerificationRepository;
 import com.itta.toggleme.member.domain.LocalAccount;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +21,8 @@ public final class VerifiedEmailTokens {
         String normalizedEmail = LocalAccount.normalizeEmail(email);
         String token = UUID.randomUUID().toString();
         Instant now = Instant.now();
-        EmailVerification verification = EmailVerification.issue(normalizedEmail, sha256("unused"), now.plusSeconds(600));
+        EmailVerification verification = EmailVerification.issue(normalizedEmail, EmailVerificationPurpose.SIGNUP, sha256("unused"),
+                now.plusSeconds(600));
         verification.markVerified(sha256(token), now.plusSeconds(1800), now);
         repository.saveAndFlush(verification);
         return token;

@@ -24,7 +24,17 @@ public class SmtpEmailSender implements EmailSender {
 
     @Override
     public void sendVerificationCode(String to, String code) {
-        SimpleMailMessage message = buildMessage(to, code);
+        send(buildMessage(to, "[ToggleMe] 이메일 인증 코드", "ToggleMe 이메일 인증 코드는 " + code + " 입니다.\n"
+                + "10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일을 무시해 주세요."));
+    }
+
+    @Override
+    public void sendPasswordResetCode(String to, String code) {
+        send(buildMessage(to, "[ToggleMe] 비밀번호 재설정 코드", "ToggleMe 비밀번호 재설정 코드는 " + code + " 입니다.\n"
+                + "10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일을 무시해 주세요."));
+    }
+
+    private void send(SimpleMailMessage message) {
         try {
             mailSender.send(message);
         } catch (MailException e) {
@@ -33,13 +43,12 @@ public class SmtpEmailSender implements EmailSender {
         }
     }
 
-    private SimpleMailMessage buildMessage(String to, String code) {
+    private SimpleMailMessage buildMessage(String to, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(to);
-        message.setSubject("[ToggleMe] 이메일 인증 코드");
-        message.setText("ToggleMe 이메일 인증 코드는 " + code + " 입니다.\n"
-                + "10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일을 무시해 주세요.");
+        message.setSubject(subject);
+        message.setText(text);
         return message;
     }
 }
