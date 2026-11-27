@@ -91,17 +91,19 @@ class RoomTagIntegrationTest {
     }
 
     @Test
-    void 공개_아이템의_태그로_가구별_대표_태그를_보여준다() throws Exception {
+    void 공개_아이템의_태그로_가구별_대표_태그를_여러_개_보여준다() throws Exception {
         record(typeIds.get(0), "PUBLIC", "[\"추리\", \"외국소설\"]");
         record(typeIds.get(1), "PUBLIC", "[\"추리\", \"스릴러\"]");
 
         tags(owner, roomId)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].furnitureTypeId").value(typeIds.get(1)))
                 .andExpect(jsonPath("$[0].name").value("추리"))
                 .andExpect(jsonPath("$[1].furnitureTypeId").value(typeIds.get(0)))
-                .andExpect(jsonPath("$[1].name").value("외국소설"));
+                .andExpect(jsonPath("$[1].name").value("외국소설"))
+                .andExpect(jsonPath("$[2].furnitureTypeId").value(typeIds.get(1)))
+                .andExpect(jsonPath("$[2].name").value("스릴러"));
     }
 
     @Test
