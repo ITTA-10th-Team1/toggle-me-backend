@@ -3,6 +3,8 @@ package com.itta.toggleme.auth.controller;
 import com.itta.toggleme.auth.dto.KakaoLoginRequest;
 import com.itta.toggleme.auth.dto.LocalLoginRequest;
 import com.itta.toggleme.auth.dto.LocalSignUpRequest;
+import com.itta.toggleme.auth.dto.LoginIdAvailabilityRequest;
+import com.itta.toggleme.auth.dto.LoginIdAvailabilityResponse;
 import com.itta.toggleme.auth.dto.LoginResponse;
 import com.itta.toggleme.auth.dto.RefreshTokenRequest;
 import com.itta.toggleme.auth.dto.TokenResponse;
@@ -17,6 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,12 +42,21 @@ public class AuthController {
         return ResponseEntity.ok(authService.loginWithKakao(request.accessToken()));
     }
 
-    @Operation(summary = "자체 회원가입 (가입 즉시 토큰 발급)")
+    @Operation(summary = "자체 회원가입 (이메일 인증 후 받은 verificationToken 필요, 가입 즉시 토큰 발급)")
     @PostMapping("/signup")
     public ResponseEntity<LoginResponse> signUp(@Valid @RequestBody LocalSignUpRequest request) {
         LoginResponse response = localAuthService.signUp(
-                request.loginId(), request.email(), request.password(), request.nickname());
+                request.loginId(), request.email(), request.emailVerificationToken(), request.password(),
+                request.nickname());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(summary = "가입 전 아이디 사용 가능 여부 확인 (로그인 불필요)")
+    @GetMapping("/login-id-availability")
+    public ResponseEntity<LoginIdAvailabilityResponse> checkLoginId(
+            @Valid @ModelAttribute LoginIdAvailabilityRequest request) {
+        return ResponseEntity.ok(new LoginIdAvailabilityResponse(
+                localAuthService.isLoginIdAvailable(request.loginId())));
     }
 
     @Operation(summary = "자체 로그인 (아이디·비밀번호)")

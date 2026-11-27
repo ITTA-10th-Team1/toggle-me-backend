@@ -81,7 +81,8 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.handle").value(member.getHandle()))
                 .andExpect(jsonPath("$.nickname").value("토글러"))
                 .andExpect(jsonPath("$.profileCompleted").value(true))
-                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"))
+                .andExpect(jsonPath("$.tutorialCompleted").value(false));
     }
 
     @Test
@@ -111,7 +112,51 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"step_" + randomSuffix() + "\",\"nickname\":\"토글러\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"));
+                .andExpect(jsonPath("$.onboardingStep").value("FURNITURE"))
+                .andExpect(jsonPath("$.tutorialCompleted").value(false));
+    }
+
+    @Test
+    void 튜토리얼을_봤다고_저장하면_내_정보에_반영된다() throws Exception {
+        member.completeOnboarding();
+
+        mockMvc.perform(patch("/api/v1/members/me/tutorial").header("Authorization", bearer()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/members/me").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tutorialCompleted").value(true));
+    }
+
+    @Test
+    void 튜토리얼_봤음은_여러_번_저장해도_204다() throws Exception {
+        member.completeOnboarding();
+
+        mockMvc.perform(patch("/api/v1/members/me/tutorial").header("Authorization", bearer()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(patch("/api/v1/members/me/tutorial").header("Authorization", bearer()))
+                .andExpect(status().isNoContent());
+
+        assertThat(memberRepository.findById(member.getId()).orElseThrow().isTutorialCompleted()).isTrue();
+    }
+
+    @Test
+    void 온보딩_전에는_튜토리얼을_저장할_수_없다() throws Exception {
+        mockMvc.perform(patch("/api/v1/members/me/tutorial").header("Authorization", bearer()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEMBER_ONBOARDING_REQUIRED"));
+
+        assertThat(memberRepository.findById(member.getId()).orElseThrow().isTutorialCompleted()).isFalse();
+    }
+
+    @Test
+    void 튜토리얼_저장은_인증이_필요하고_없는_회원은_404다() throws Exception {
+        mockMvc.perform(patch("/api/v1/members/me/tutorial"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/v1/members/me/tutorial")
+                        .header("Authorization", "Bearer " + jwtTokenProvider.createAccessToken(Long.MAX_VALUE)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     @Test

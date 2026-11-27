@@ -14,6 +14,13 @@ public interface LocalAccountRepository extends JpaRepository<LocalAccount, Long
             """)
     Optional<LocalAccount> findWithMemberByLoginId(String loginId);
 
+    @Query("""
+            select la from LocalAccount la
+            join fetch la.member
+            where la.email = :email
+            """)
+    Optional<LocalAccount> findWithMemberByEmail(String email);
+
     boolean existsByLoginId(String loginId);
 
     boolean existsByEmail(String email);

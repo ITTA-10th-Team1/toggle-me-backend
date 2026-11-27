@@ -40,6 +40,10 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean profileCompleted;
 
+    // 값은 MemberRepository.completeTutorial로만 바꾼다
+    @Column(nullable = false)
+    private boolean tutorialCompleted;
+
     private Member(String handle, String nickname) {
         this.handle = handle;
         this.nickname = nickname;

@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.itta.toggleme.auth.VerifiedEmailTokens;
+import com.itta.toggleme.auth.repository.EmailVerificationRepository;
 import com.itta.toggleme.member.domain.LocalAccount;
 import com.itta.toggleme.member.domain.Member;
 import com.itta.toggleme.member.domain.MemberStatus;
@@ -44,6 +46,9 @@ class LocalLoginIntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private EmailVerificationRepository emailVerificationRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -144,7 +149,7 @@ class LocalLoginIntegrationTest {
     void 아이디_규칙이_바뀌기_전에_이메일_형식으로_만든_기존_계정도_로그인할_수_있다() throws Exception {
         Member member = memberRepository.save(Member.create("user_" + randomSuffix(), "토글러"));
         localAccountRepository.save(LocalAccount.create(
-                member, "legacy@example.com", "legacy@example.com", passwordEncoder.encode(PASSWORD)));
+                member, "legacy@example.com", "legacy@example.com", null, passwordEncoder.encode(PASSWORD)));
 
         login("legacy@example.com", PASSWORD)
                 .andExpect(status().isOk())
@@ -213,8 +218,9 @@ class LocalLoginIntegrationTest {
         Account account = new Account(randomLoginId(), "user-" + UUID.randomUUID() + "@example.com");
         mockMvc.perform(post(SIGN_UP_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"loginId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}"
-                                .formatted(account.loginId(), account.email(), password)))
+                        .content(("{\"loginId\":\"%s\",\"email\":\"%s\",\"emailVerificationToken\":\"%s\","
+                                + "\"password\":\"%s\"}").formatted(account.loginId(), account.email(),
+                                VerifiedEmailTokens.issue(emailVerificationRepository, account.email()), password)))
                 .andExpect(status().isCreated());
         return account;
     }

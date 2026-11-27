@@ -56,6 +56,19 @@ class FurnitureTypeControllerTest {
     }
 
     @Test
+    void 디자인_목록에_GLB_노드_이름을_내려준다() throws Exception {
+        FurnitureType mirror = furnitureTypeRepository.findAll().stream()
+                .filter(type -> type.getCode().equals("mirror"))
+                .findFirst()
+                .orElseThrow();
+
+        mockMvc.perform(get("/api/v1/furniture-types/{furnitureTypeId}/variants", mirror.getId())
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].objectNodeName").value("stand"));
+    }
+
+    @Test
     void 없는_가구_종류의_디자인은_조회할_수_없다() throws Exception {
         mockMvc.perform(get("/api/v1/furniture-types/{furnitureTypeId}/variants", Long.MAX_VALUE)
                         .header("Authorization", bearer))
