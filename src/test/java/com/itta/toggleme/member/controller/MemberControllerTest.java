@@ -311,7 +311,8 @@ class MemberControllerTest {
 
     @Test
     void 고정_위치가_없는_켜진_가구가_있으면_방을_만들지_않는다() throws Exception {
-        saveFurnitureVariants(2);
+        // 기본 가구(거울·냉장고·책장)에 더해 최대 5종을 넘지 않게 1종만 더 둔다
+        saveFurnitureVariants(1);
         FurnitureType type = furnitureTypeRepository.save(
                 FurnitureType.create("UNPLACED_" + randomSuffix(), "좌표 미정 가구", 4)
         );
